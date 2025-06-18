@@ -731,11 +731,7 @@ function updatePageContent(data) {
     // Always update these elements regardless of success/failure
     userQueryDisplay.querySelector('span').textContent = data.user_query || "";
     sqlQueryContent.textContent = data.query || "No SQL query available";
-    // ✅ Clear previous chart
-    const chartContainer = document.getElementById("chart-container");
-    if (chartContainer) {
-        chartContainer.innerHTML = "";
-    }
+
     // Clear containers
     tablesContainer.innerHTML = "";
     xlsxbtn.innerHTML = "";
