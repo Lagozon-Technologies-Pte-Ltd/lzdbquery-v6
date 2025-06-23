@@ -750,7 +750,7 @@ async def submit_query(
                 try:
                     llm_result = json.loads(llm_response_str)
                     llm_reframed_query = llm_result.get("rephrased_query", "")
-                    chosen_tables = llm_result.get("tables_chosen", [])
+                    chosen_tables = db_tables
                     selected_business_rule = ""
                 except json.JSONDecodeError:
                     raise HTTPException(
