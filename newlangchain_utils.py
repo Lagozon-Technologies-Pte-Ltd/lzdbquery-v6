@@ -433,30 +433,28 @@ def invoke_chain(question, messages, selected_model, selected_subject, selected_
         print("Response:", response)
 
         tables_data = {}
-        for table in db_tables:
-            query = response["query"]
-            print(f"Executing SQL Query: {query}")
-            if selected_database == "GCP":
-                result_json = db.run(query)
-                df = pd.DataFrame(result_json)
-                tables_data[table] = df
-                break
-            elif selected_database == "PostgreSQL-Azure":
-                alchemyEngine = create_engine(f'postgresql+psycopg2://{quote_plus(db_user)}:{quote_plus(db_password)}@{db_host}:{db_port}/{db_database}')
-                with alchemyEngine.connect() as conn:
-                    df = pd.read_sql(sql=query, con=conn.connection)
-                tables_data[table] = df
-                print(table)
-                break
-            elif selected_database == "Azure SQL":
-                print("now running via azure sql")
-                result = db._engine.execute(query)
-                print("result is: ", result)
-                rows = result.fetchall()
-                columns = result.keys()
-                df = pd.DataFrame(rows, columns=columns)
-                tables_data[table] = df
-                break
+        query = response["query"]
+        print(f"Executing SQL Query: {query}")
+        # if selected_database == "GCP":
+        #     result_json = db.run(query)
+        #     df = pd.DataFrame(result_json)
+        #     tables_data[table] = df
+        #     break
+        # elif selected_database == "PostgreSQL-Azure":
+        #     alchemyEngine = create_engine(f'postgresql+psycopg2://{quote_plus(db_user)}:{quote_plus(db_password)}@{db_host}:{db_port}/{db_database}')
+        #     with alchemyEngine.connect() as conn:
+        #         df = pd.read_sql(sql=query, con=conn.connection)
+        #     tables_data[table] = df
+        #     print(table)
+        #     break
+        if selected_database == "Azure SQL":
+            print("now running via azure sql")
+            result = db._engine.execute(query)
+            print("result is: ", result)
+            rows = result.fetchall()
+            columns = result.keys()
+            df = pd.DataFrame(rows, columns=columns)
+            tables_data["Table data"] = df
         # Include SQL_Statement in the return tuple
         return response, db_tables, tables_data, db, final_prompt
 
@@ -594,7 +592,7 @@ def get_example_selector(json_file_path: str):
 
 def find_relationships_for_tables(table_names, json_file_path):
     # Load the JSON
-    with open(json_file_path, 'r') as f:
+    with open(json_file_path, 'r', encoding='utf-8') as f:
         relations_data = json.load(f)
     all_related = {}
     for table_name in table_names:

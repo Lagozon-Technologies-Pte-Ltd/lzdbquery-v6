@@ -15,49 +15,37 @@ window.onload = function () {
     let originalButtonHTML = "";
     console.log("Variables reset on page reload");
 };
-async function loadTableColumns(table_name) {
-    console.log("Loading columns for table:", table_name); // Debug statement
-    const selectedTable = table_name;
+function loadTableColumns(columnNames) {
+    console.log("Loading columns for table:");
 
-    if (!selectedTable) {
-        alert("Please select a table.");
+    if (!columnNames || columnNames.length === 0) {
+        alert("No columns available for this table.");
         return;
     }
 
-    try {
-        const response = await fetch(`/get-table-columns/?table_name=${selectedTable}`);
-        const data = await response.json();
+    const xAxisDropdown = document.getElementById("x-axis-dropdown");
+    const yAxisDropdown = document.getElementById("y-axis-dropdown");
 
-        if (response.ok && data.columns) {
-            const xAxisDropdown = document.getElementById("x-axis-dropdown");
-            const yAxisDropdown = document.getElementById("y-axis-dropdown");
+    // Reset dropdown options
+    xAxisDropdown.innerHTML = '<option value="" disabled selected>Select X-Axis</option>';
+    yAxisDropdown.innerHTML = '<option value="" disabled selected>Select Y-Axis</option>';
 
-            // Reset dropdown options
-            xAxisDropdown.innerHTML = '<option value="" disabled selected>Select X-Axis</option>';
-            yAxisDropdown.innerHTML = '<option value="" disabled selected>Select Y-Axis</option>';
+    // Populate options
+    columnNames.forEach((column) => {
+        const xOption = document.createElement("option");
+        const yOption = document.createElement("option");
 
-            // Populate options
-            data.columns.forEach((column) => {
-                const xOption = document.createElement("option");
-                const yOption = document.createElement("option");
+        xOption.value = column;
+        xOption.textContent = column;
 
-                xOption.value = column;
-                xOption.textContent = column;
+        yOption.value = column;
+        yOption.textContent = column;
 
-                yOption.value = column;
-                yOption.textContent = column;
-
-                xAxisDropdown.appendChild(xOption);
-                yAxisDropdown.appendChild(yOption);
-            });
-        } else {
-            alert("Failed to load columns.");
-        }
-    } catch (error) {
-        console.error("Error loading table columns:", error);
-        alert("An error occurred while fetching columns.");
-    }
+        xAxisDropdown.appendChild(xOption);
+        yAxisDropdown.appendChild(yOption);
+    });
 }
+
 // Add event listener for "Enter" key press in the input field
 document.getElementById("chat_user_query").addEventListener("keyup", function (event) {
     // Number 13 is the "Enter" key on the keyboard
@@ -77,8 +65,8 @@ async function generateChart() {
     const xAxis = xAxisDropdown.value;
     const yAxis = yAxisDropdown.value;
     const chartType = chartTypeDropdown.value;
-    selectedTable = tableName;
-    if (!selectedTable || !xAxis || !yAxis || !chartType) {
+
+    if (!xAxis || !yAxis || !chartType) {
         alert("Please select all required fields.");
         return;
     }
@@ -90,10 +78,11 @@ async function generateChart() {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                table_name: selectedTable,
                 x_axis: xAxis,
                 y_axis: yAxis,
                 chart_type: chartType,
+                // flatten if tableData is { "Table data": [...] }
+                table_data: table_data["Table data"] || table_data
             }),
         });
 
@@ -365,6 +354,7 @@ async function sendMessage() {
 
         // Hide typing indicator
         typingIndicator.style.display = "none";
+        table_data = data.tables_data;
 
         if (!response.ok) {
             // Error case - show error message but keep prompts visible
@@ -394,14 +384,30 @@ async function sendMessage() {
                 </div>
             `;
 
-            if (data.tables && data.tables.length > 0) {
-                tableName = data.tables[0].table_name;
-                loadTableColumns(tableName);
+            if (data.tables) {
+                console.log()
+                const rows = table_data["Table data"];
+                const columnNames = (rows && rows.length > 0) ? Object.keys(rows[0]) : [];
+
+                // Now call your function with the column names
+                loadTableColumns(columnNames);
+                updatePageContent(data);
             }
         }
         updatePageContent(data);
 
         chatMessages.scrollTop = chatMessages.scrollHeight;
+        table_data = data.tables_data;
+
+        if (data.tables) {
+            console.log()
+            const rows = table_data["Table data"];
+            const columnNames = (rows && rows.length > 0) ? Object.keys(rows[0]) : [];
+
+            // Now call your function with the column names
+            loadTableColumns(columnNames);
+            updatePageContent(data);
+        }
     } catch (error) {
         console.error("Error:", error);
         typingIndicator.style.display = "none";
@@ -789,13 +795,15 @@ function updatePageContent(data) {
                 </div>
             `;
             tablesContainer.appendChild(tableWrapper);
+            table_data = data.tables_data;
 
             // Add download button for each table
             const downloadButton = document.createElement("button");
+            downloadButton.id = `download-button-${table.table_name}`;
             downloadButton.className = "download-btn";
             downloadButton.innerHTML = `<img src="static/excel.png" alt="xlsx" class="excel-icon"> Download Excel`;
-            downloadButton.onclick = () => downloadSpecificTable(table.table_name);
-            xlsxbtn.insertBefore(downloadButton, viewQueryBtn);
+            downloadButton.onclick = () => downloadSpecificTable(table_data);
+            xlsxbtn.appendChild(downloadButton);
 
             updatePaginationLinks(
                 table.table_name,
@@ -812,7 +820,7 @@ function updatePageContent(data) {
 }/**
  *
  */
-function addToFAQs(selectedSection) {
+function addToFAQs() {
     let userQuery = document.querySelector("#user_query_display span").innerText;
 
     if (!userQuery.trim()) {
@@ -820,7 +828,7 @@ function addToFAQs(selectedSection) {
         return;
     }
 
-    fetch(`/add_to_faqs?subject=${selectedSection}`, {
+    fetch('/add_to_faqs', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -839,10 +847,38 @@ function addToFAQs(selectedSection) {
 /**
  * @param {any} tableName
  */
-function downloadSpecificTable(tableName) {
-    // Corrected: Using template literals to construct the URL
-    const downloadUrl = `/download-table?table_name=${encodeURIComponent(tableName)}`;
-    window.location.href = downloadUrl;
+function downloadSpecificTable(table_data) {
+    // Send a POST request with table_data as JSON
+    fetch('/download-table', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            table_name: "DBQuery_data",
+            table_data: table_data
+        })
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.blob(); // Get the binary Excel file
+        })
+        .then(blob => {
+            // Create a link to download the file
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `DBQuery_data.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(error => {
+            console.error('There was a problem with the fetch operation:', error);
+        });
 }
 /**
  *
