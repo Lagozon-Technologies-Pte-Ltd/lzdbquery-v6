@@ -596,9 +596,13 @@ def find_relationships_for_tables(table_names, json_file_path):
         relations_data = json.load(f)
     all_related = {}
     for table_name in table_names:
+        lower_table_name = table_name.lower()
         related = []
         for rel in relations_data["relations"]:
-            if rel.get("source") == table_name or rel.get("target") == table_name:
+            # Get source and target, default to empty string if not present
+            source = rel.get("source", "").lower()
+            target = rel.get("target", "").lower()
+            if source == lower_table_name or target == lower_table_name:
                 related.append(rel)
         all_related[table_name] = related
     return all_related

@@ -757,7 +757,7 @@ async def submit_query(
                         status_code=500,
                         detail="Failed to parse LLM response"
                     )
-            
+            logger.info(f"llm result: {llm_result}")
             response_data["llm_response"] = llm_reframed_query
             response_data["interprompt"] = unified_prompt
             
@@ -772,7 +772,7 @@ async def submit_query(
         try:
             relationships = find_relationships_for_tables(chosen_tables, 'table_relation.json')
             table_details = get_table_details(table_name=chosen_tables)
-            
+            logger.info(f"relationships: {relationships}")
             response, chosen_tables, tables_data, agent_executor, final_prompt = invoke_chain(
                 llm_reframed_query,
                 request.session['messages'],
