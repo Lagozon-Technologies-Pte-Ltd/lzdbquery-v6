@@ -674,7 +674,7 @@ async def submit_query(
         "tables": [],
         "llm_response": "",
         "chat_response": "",
-        "history":  request.session['messages'],
+        "history":  request.session.get('messages', []),
         "interprompt": "",
         "langprompt": "",
         "error": None
@@ -689,17 +689,19 @@ async def submit_query(
         # Get current question type from session
         current_question_type = request.session.get("current_question_type", "generic")
         prompts = request.session.get("prompts", load_prompts("generic_prompt.yaml"))
-        request.session['user_query'] = user_query
+        request.session['user_query'] = user_query  # Still store original query separately if needed
 
         # Handle session messages
         if "messages" not in request.session:
             request.session["messages"] = []
-        request.session['messages'].append({"role": "user", "content": user_query})
+        
+        # Don't add user_query to messages yet - we'll add the reframed version later
         chat_history = "\n".join(
-        f"{msg['role']}: {msg['content']}" for msg in request.session['messages'][-10:]
+            f"{msg['role']}: {msg['content']}" for msg in request.session['messages'][-1:]
         )  
-        print(request.session['messages'])
+        
         logger.info(f"Chat history: {chat_history}")
+
         # Step 1: Generate unified prompt based on question type
         try:
             if current_question_type == "usecase":
@@ -723,7 +725,7 @@ async def submit_query(
                     })
                     
                     response_data = {
-                        "user_query": request.session['user_query'],
+                        "user_query": user_query,
                         "query": "",
                         "tables": "",
                         "llm_response": llm_reframed_query,
@@ -757,6 +759,10 @@ async def submit_query(
                         status_code=500,
                         detail="Failed to parse LLM response"
                     )
+            
+            # Now add the reframed query to messages instead of original user_query
+            request.session['messages'].append({"role": "user", "content": llm_reframed_query})
+            
             logger.info(f"llm result: {llm_result}")
             response_data["llm_response"] = llm_reframed_query
             response_data["interprompt"] = unified_prompt
@@ -768,13 +774,14 @@ async def submit_query(
                 detail=f"Prompt generation failed: {str(e)}"
             )
 
+        # Rest of your code remains the same...
         # Step 2: Invoke LangChain
         try:
             relationships = find_relationships_for_tables(chosen_tables, 'table_relation.json')
             table_details = get_table_details(table_name=chosen_tables)
             logger.info(f"relationships: {relationships}")
             response, chosen_tables, tables_data, agent_executor, final_prompt = invoke_chain(
-                llm_reframed_query,
+                llm_reframed_query,  # Using the reframed query here
                 request.session['messages'],
                 model,
                 section,
@@ -864,7 +871,7 @@ async def submit_query(
             "interprompt": unified_prompt if 'unified_prompt' in locals() else "Not generated due to error"
         })
         
-        session_state['messages'].append({
+        request.session['messages'].append({
             "role": "assistant",
             "content": "An unexpected error occurred"
         })
