@@ -592,17 +592,13 @@ def get_example_selector(json_file_path: str):
 
 def find_relationships_for_tables(table_names, json_file_path):
     # Load the JSON
-    with open(json_file_path, 'r', encoding='utf-8') as f:
+    with open(json_file_path, 'r') as f:
         relations_data = json.load(f)
     all_related = {}
     for table_name in table_names:
-        lower_table_name = table_name.lower()
         related = []
         for rel in relations_data["relations"]:
-            # Get source and target, default to empty string if not present
-            source = rel.get("source", "").lower()
-            target = rel.get("target", "").lower()
-            if source == lower_table_name or target == lower_table_name:
+            if rel.get("source") == table_name or rel.get("target") == table_name:
                 related.append(rel)
         all_related[table_name] = related
     return all_related

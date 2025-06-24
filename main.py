@@ -777,7 +777,7 @@ async def submit_query(
         # Rest of your code remains the same...
         # Step 2: Invoke LangChain
         try:
-            relationships = find_relationships_for_tables(chosen_tables, 'table_relation.json')
+            relationships = find_relationships_for_tables(["mh_ro_hdr_details","MH_RO_PARTS","MH_CUST_VERBATIM","MH_MODEL_MASTER","MH_AD_AI_DIMENSION","MH_RO_LABOUR"] , 'table_relation.json')
             table_details = get_table_details(table_name=chosen_tables)
             logger.info(f"relationships: {relationships}")
             response, chosen_tables, tables_data, agent_executor, final_prompt = invoke_chain(
