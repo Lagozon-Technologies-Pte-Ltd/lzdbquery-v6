@@ -696,12 +696,13 @@ async def submit_query(
             request.session["messages"] = []
         
         # Don't add user_query to messages yet - we'll add the reframed version later
-        chat_history = "\n".join(
-            f"{msg['role']}: {msg['content']}" for msg in request.session['messages'][-1:]
-        )  
+        chat_history = ""
+        if request.session['messages']:  # Check if messages exist (should contain at most 1)
+            last_msg = request.session['messages'][-1]  # Get the only message
+            chat_history = f"{last_msg['role']}: {last_msg['content']}"
         
         logger.info(f"Chat history: {chat_history}")
-
+        logger.info(f"Messages in session: {request.session['messages']}")
         # Step 1: Generate unified prompt based on question type
         try:
             if current_question_type == "usecase":
@@ -761,7 +762,7 @@ async def submit_query(
                     )
             
             # Now add the reframed query to messages instead of original user_query
-            request.session['messages'].append({"role": "user", "content": llm_reframed_query})
+            request.session['messages'] = [{"role": "user", "content": llm_reframed_query}]
             
             logger.info(f"llm result: {llm_result}")
             response_data["llm_response"] = llm_reframed_query
@@ -872,7 +873,7 @@ async def submit_query(
         })
         
         request.session['messages'].append({
-            "role": "assistant",
+            "role": "user",
             "content": "An unexpected error occurred"
         })
         
@@ -940,6 +941,7 @@ async def read_root(request: Request):
         TemplateResponse: The rendered HTML template.
     """
     # Extract table names dynamically
+    request.session.clear()
     tables = []
     # Only set defaults if not already set
     if "current_question_type" not in request.session:
