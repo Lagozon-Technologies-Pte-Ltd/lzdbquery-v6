@@ -764,7 +764,6 @@ async def submit_query(
             # Now add the reframed query to messages instead of original user_query
             request.session['messages'] = [{"role": "user", "content": llm_reframed_query}]
             
-            logger.info(f"llm result: {llm_result}")
             response_data["llm_response"] = llm_reframed_query
             response_data["interprompt"] = unified_prompt
             

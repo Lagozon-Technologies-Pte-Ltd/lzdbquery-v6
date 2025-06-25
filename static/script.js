@@ -18,10 +18,10 @@ window.onload = function () {
 function loadTableColumns(columnNames) {
     console.log("Loading columns for table:");
 
-    if (!columnNames || columnNames.length === 0) {
-        alert("No columns available for this table.");
-        return;
-    }
+    // if (!columnNames || columnNames.length === 0) {
+    //     alert("No columns available for this table.");
+    //     return;
+    // }
 
     const xAxisDropdown = document.getElementById("x-axis-dropdown");
     const yAxisDropdown = document.getElementById("y-axis-dropdown");
