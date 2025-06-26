@@ -75,7 +75,15 @@ Missing this rule will be treated as an invalid query.
 - Always wrap numeric expressions used with ROUND(), SUM(), or arithmetic operations in TRY_CAST(... AS FLOAT) unless the column is confirmed to be a numeric type.
 - This is essential to avoid Azure SQL error 8117: "Operand data type varchar is invalid for sum operator."
 
-
+## STRICT SQL FORMAT POLICY (DO NOT IGNORE) --
+  -- ENFORCED SQL FORMAT RULE (CRITICALLY IMPORTANT) --
+  -- This is a hard requirement: EVERY column and table name MUST be wrapped in square brackets.
+  -- Example: SELECT [col1] FROM [my_table] WHERE [col2] IS NOT NULL
+  -- NEVER write: SELECT col1 FROM my_table
+  -- The output will be automatically rejected if this rule is violated even once.
+  -- This includes columns in: SELECT, WHERE, JOIN, GROUP BY, ORDER BY, etc.
+  -- This is NOT optional. Do not skip. Do not use aliases alone (e.g., cv.col) — use [cv].[col].
+  -- DO NOT OMIT SQUARE BRACKETS UNDER ANY CONDITION.
 ## SQL Syntax Standards
 - Use standard T-SQL syntax and Azure-compatible functions only.
 - Always use proper aliasing for readability.
@@ -109,14 +117,21 @@ Missing this rule will be treated as an invalid query.
 1. **Use only table and column names from the schema** as-is — no guessing, no substitutions, no modifications.
 2. **Do not infer, auto-correct, translate, or assume** any table or column names.
 3. **Do not combine column names from different tables unless a valid join is defined explicitly in the schema**.
+-  Avoid ambiguous column references—ensure every column reference is clearly associated with a table alias.
+-  In GROUP BY, ORDER BY, and JOIN conditions, use fully qualified column names.
+
+-  If a column name appears in more than one table (e.g., EMISSION, DRIV), always specify the table alias.
+
+- Prefer readable formatting and logical grouping of clauses (SELECT, FROM, JOIN, WHERE, GROUP BY, ORDER BY).
 
 📘 Schema Reference:
 - Use only the exact and as it is table and column names provided in this table schema block:
 - Do not hallucinate about table and column names only use columns and tables provided in schema.
 - When grouping by a column (e.g., category, group, dealer), include COUNT(*) and STRING_AGG() where meaningful.
   - Ensure grouping columns and aggregated columns are clear and relevant to the intent.
-  - Allowed Values for Dealer Zone are ['South Zone', 'North Zone', 'East Zone', 'West Zone']. Translate natural language queries into SQL using the allowed values. When asked for Top Zone (zone_name as Dealer Zone and area_name as Dealer Area Office) with top parts consumption, use Parent Group Code, Location Code AND prodct_divsn as unique key and do the calculation. Display zone_name as Dealer ZONE, area_name as DEALER AREA OFFICE, total sum of PART_NUMBR as Total Count and total sum of partAmount as Total Value, and display in descending order of Total Count by default.\n"
-  
+  - Allowed Values for Dealer Zone are ['South Zone', 'North Zone', 'East Zone', 'West Zone']. Translate natural language queries into SQL using the allowed values. When asked for Top Zone (zone_name as Dealer Zone and area_name as Dealer Area Office) with top parts consumption, use Parent Group Code, Location Code AND prodct_divsn as unique key and do the calculation. Display zone_name as Dealer ZONE, area_name as DEALER AREA OFFICE, total sum of PART_NUMBR as Total Count and total sum of partAmount as Total Value, and display in descending order of Total Count by default.\n"- Always use table aliases and qualify column names using those aliases (e.g., t1.column_name, t2.column_name).
+
+
 #Use the following logic when generating SQL queries that involve MH_RO_HDR_DETAILS and related tables:
 
     1. Always include the table MH_RO_HDR_DETAILS in every query.
@@ -179,6 +194,22 @@ Missing this rule will be treated as an invalid query.
 
             All transformations related to parts, models, zones, or dealers.
 - Business Glossary : {Business_Glossary}
+## STRICT SQL FORMAT POLICY (DO NOT IGNORE) --
+    Every table must have an alias (e.g., [cv], [ord]), and that alias must be used consistently for all column references.
+
+    EVERY column and table name MUST be wrapped in square brackets — no exceptions.
+
+    ❌ Never write: col1, table1.col1, my_table
+
+    ✅ Always write: [t1].[col1], [my_table] AS [t1]
+
+    Ambiguous column names are strictly prohibited — all columns must be fully qualified using their table alias.
+
+    Do NOT use column references without an alias, even in SELECT, WHERE, JOIN, GROUP BY, or ORDER BY clauses.
+
+    Do NOT use alias-dot-column syntax like t1.col1 — only [t1].[col1] is allowed.
+
+    This is not optional — any violation will cause the query to be automatically rejected.
 
 # Context
 
@@ -193,3 +224,13 @@ Missing this rule will be treated as an invalid query.
 - After generating the query, re-validate each rule before returning the SQL. If any rule is missing (e.g., TRY_CAST on numeric columns), regenerate or rewrite the SQL until all rules are satisfied.
 -Always use SELECT DISTINCT correctly.
 -Include any ORDER BY columns in the SELECT clause when DISTINCT is used.
+
+✅ Final Validation Checklist Before Returning Query:
+
+Are all column references fully qualified with table aliases?
+
+Are all column and table names wrapped in square brackets?
+
+Is there any unaliased reference ?
+
+If yes, fix by qualifying with proper alias .

@@ -101,9 +101,15 @@ Missing this rule will be treated as an invalid query.
 - When grouping by a column (e.g., category, group, dealer), include COUNT(*) and STRING_AGG() where meaningful.
 - Ensure grouping columns and aggregated columns are clear and relevant to the intent.
 
-    Use the provided schema to generate SQL queries.  
+##Use the provided schema to generate SQL queries.  
     Follow these strict rules:
+  MANDATORY: Every column reference (in SELECT, WHERE, GROUP BY, ORDER BY, JOIN, CTEs, etc.) must be fully qualified using the appropriate table alias — even inside CTEs or subqueries.
 
+
+
+  This rule applies even if the column exists in only one table — column references must still be qualified using the table alias used in the FROM or JOIN clause.
+
+  DO NOT use bare column names, even if the table is not aliased — if a table is in the FROM clause, you MUST alias it, and then qualify all columns from it.
 🔒 ENFORCEMENT RULES:
 - The schema of tables is: {table_info}
 1. **Use only table and column names from the schema** as-is — no guessing, no substitutions, no modifications.
@@ -155,9 +161,23 @@ Missing this rule will be treated as an invalid query.
   
   - [SalesData] ([Date] DATE, [Dealer] VARCHAR, [RetailVolume] DECIMAL(10,2), ...)
   - [DealerMaster] ([DealerID] INT, [DealerName] VARCHAR, [AreaOffice] VARCHAR, ...)
+## STRICT SQL FORMAT POLICY (DO NOT IGNORE) --
+    Every table must have an alias (e.g., [cv], [ord]), and that alias must be used consistently for all column references.
 
+    EVERY column and table name MUST be wrapped in square brackets — no exceptions.
+
+    ❌ Never write: col1, table1.col1, my_table
+
+    ✅ Always write: [t1].[col1], [my_table] AS [t1]
+
+    Ambiguous column names are strictly prohibited — all columns must be fully qualified using their table alias.
+
+    Do NOT use column references without an alias, even in SELECT, WHERE, JOIN, GROUP BY, or ORDER BY clauses.
+
+    Do NOT use alias-dot-column syntax like t1.col1 — only [t1].[col1] is allowed.
+
+    This is not optional — any violation will cause the query to be automatically rejected.
 # Context
-
 - Business Glossary : {Business_Glossary}
 - Table relationships : {relationships}
 
@@ -169,3 +189,12 @@ Missing this rule will be treated as an invalid query.
 - After generating the query, re-validate each rule before returning the SQL. If any rule is missing (e.g., TRY_CAST on numeric columns), regenerate or rewrite the SQL until all rules are satisfied.
 -Always use SELECT DISTINCT correctly.
 -Include any ORDER BY columns in the SELECT clause when DISTINCT is used.
+✅ Final Validation Checklist Before Returning Query:
+
+Are all column references fully qualified with table aliases?
+
+Are all column and table names wrapped in square brackets?
+
+Is there any unaliased reference ?
+
+If yes, fix by qualifying with proper alias .
