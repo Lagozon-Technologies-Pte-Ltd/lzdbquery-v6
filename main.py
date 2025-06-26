@@ -82,9 +82,9 @@ AZURE_CONTAINER_NAME = os.getenv('AZURE_CONTAINER_NAME')
 # Initialize the BlobServiceClient
 try:
     blob_service_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-    print("Blob service client initialized successfully.")
+    logger.info("Blob service client initialized successfully.")
 except Exception as e:
-    print(f"Error initializing BlobServiceClient: {e}")
+    logger.error(f"Error initializing BlobServiceClient: {e}")
     # Handle the error appropriately, possibly exiting the application
     raise  # Re-raise the exception to prevent the app from starting
 from pydantic import BaseModel
@@ -324,7 +324,7 @@ def generate_chart_figure(data_df: pd.DataFrame, x_axis: str, y_axis: str, chart
             
         return fig
     except Exception as e:
-        print(f"Error generating {chart_type} chart: {str(e)}")
+        logger.info(f"Error generating {chart_type} chart: {str(e)}")
         raise
 
 class ChartRequest(BaseModel):
@@ -474,7 +474,7 @@ async def get_questions(subject: str, request: Request):
     try:
         # Check if the blob exists
         if not blob_client.exists():
-            print(f"file not found {csv_file_name}")
+            logger.error(f"file not found {csv_file_name}")
             return JSONResponse(
                 content={"error": f"The file {csv_file_name} does not exist."}, status_code=404
             )
@@ -509,7 +509,7 @@ def load_prompts(filename:str):
         with open(filename, "r", encoding="utf-8") as file:
             return yaml.safe_load(file)
     except Exception as e:
-        print(f"Error reading prompts file: {e}")
+        logger.info(f"Error reading prompts file: {e}")
         return {}
     
 
@@ -791,7 +791,6 @@ async def submit_query(
                 current_question_type,
                 relationships
             )
-            print("tables_data is:",tables_data)
 
             response_data["langprompt"] = str(final_prompt)
             
@@ -895,7 +894,7 @@ async def reset_session(request: Request):
     request.session["current_question_type"] = "generic"
     request.session["prompts"] = load_prompts("generic_prompt.yaml")
 
-    print("now, the que type is:", request.session.get("current_question_type"))
+    logger.info(f"Question type is: {request.session.get('current_question_type')}")
     return {"message": "Session state cleared successfully"}
 
 def prepare_table_html(tables_data, page, records_per_page):

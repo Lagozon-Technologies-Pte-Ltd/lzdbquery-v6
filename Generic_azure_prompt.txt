@@ -167,3 +167,5 @@ Missing this rule will be treated as an invalid query.
 - Format SQL cleanly using indentation and uppercase SQL keywords.
 - Ensure full compatibility with Azure SQL (Database, Managed Instance, Synapse).
 - After generating the query, re-validate each rule before returning the SQL. If any rule is missing (e.g., TRY_CAST on numeric columns), regenerate or rewrite the SQL until all rules are satisfied.
+-Always use SELECT DISTINCT correctly.
+-Include any ORDER BY columns in the SELECT clause when DISTINCT is used.

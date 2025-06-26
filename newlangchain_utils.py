@@ -371,20 +371,17 @@ def get_chain(question, _messages, selected_model, selected_subject, selected_da
             ]
         )
     final_prompt = final_prompt1
-    print("langchain prompt: ", final_prompt)
     # if selected_database=="GCP":
     #         db = BigQuerySQLDatabase()
     # elif selected_database=="PostgreSQL-Azure":
     #     db = get_postgres_db(selected_subject, db_tables)
     if selected_database=="Azure SQL":
         db = get_sql_db()
-    print("start",selected_database)
     print("Generate Query Starting")
 
     #     final_prompt=final_prompt2    
     generate_query = create_sql_query_chain(llm, db, final_prompt)
     SQL_Statement = generate_query.invoke({"question": question, "messages": _messages})
-    print(f"Generated SQL Statement before execution: {SQL_Statement}")
 
     # Override QuerySQLDataBaseTool validation
     class CustomQuerySQLDatabaseTool(QuerySQLDataBaseTool):
@@ -420,7 +417,6 @@ def invoke_chain(question, messages, selected_model, selected_subject, selected_
             question, history.messages, selected_model, selected_subject,
             selected_database, table_info, selected_business_rule, question_type, relationships
         )
-        print(f"Generated SQL Statement in newlangchain_utils: {SQL_Statement}")
         SQL_Statement = SQL_Statement.replace("SQL Query:", "").strip()
 
         response = chain.invoke({
@@ -448,7 +444,6 @@ def invoke_chain(question, messages, selected_model, selected_subject, selected_
         #     print(table)
         #     break
         if selected_database == "Azure SQL":
-            print("now running via azure sql")
             result = db._engine.execute(query)
             print("result is: ", result)
             rows = result.fetchall()
