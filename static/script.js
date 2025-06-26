@@ -415,7 +415,7 @@ async function sendMessage() {
         chatMessages.innerHTML += `
             <div class="message ai-message error">
                 <div class="message-content">
-                    <strong>Network Error:</strong> Failed to communicate with the server. Please try again.
+                    <strong> Please try again.
                 </div>
             </div>
         `;

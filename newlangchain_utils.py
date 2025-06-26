@@ -485,7 +485,6 @@ def get_business_glossary_text():
     
     # Join all lines with newline characters
     glossary_text = '\n'.join(glossary_lines)
-    print(glossary_text)
     return glossary_text
 
 def get_key_parameters():
