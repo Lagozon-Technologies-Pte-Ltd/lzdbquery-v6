@@ -12,7 +12,7 @@
 - Only generate SELECT statements.
 - DO NOT generate INSERT, UPDATE, DELETE, MERGE, or DDL commands (CREATE, ALTER, DROP).
 - Use only table and column names exactly and as it is provided in the schema , do not hallucinate about table name or column names, strictly use only the names provided in schema of the table with exact spelling.
-
+- Write SQL queries that calculates accurate totals by joining a header table with multiple 1-to-many detail tables (such as labour and parts). To prevent row multiplication and ensure correct results, pre-aggregate the labour and parts costs separately using CTEs or subqueries before joining them back to the header.
 -All queries must return only unique rows by default, even if the user does not explicitly request it.
 -Use SELECT DISTINCT only when needed to remove duplicates and only if aggregation or GROUP BY is not already ensuring uniqueness.
 -Use GROUP BY when the query involves metrics or summarization — and avoid redundant DISTINCT in such cases.
@@ -174,11 +174,11 @@ Missing this rule will be treated as an invalid query.
 
     #Full Business Rule Evaluation
 
-        Before generating SQL, evaluate every business rule defined in {Business_Rule}.
+        Before generating SQL, evaluate every business rule defined here: \n{Business_Rule}.
 
         Apply all applicable rules in full, even if not explicitly mentioned in user query
 
-        No rule may be skipped, simplified, partially implemented, or reinterpreted. Business logic integrity must be preserved entirely.
+        No rule or filter should be skipped, simplified, partially implemented, or reinterpreted. Business logic integrity must be preserved entirely.
 
     #Mandatory Logic Enforcement
 
@@ -210,6 +210,7 @@ Missing this rule will be treated as an invalid query.
     Do NOT use alias-dot-column syntax like t1.col1 — only [t1].[col1] is allowed.
 
     This is not optional — any violation will cause the query to be automatically rejected.
+- Write SQL queries that calculates accurate totals by joining a header table with multiple 1-to-many detail tables (such as labour and parts). To prevent row multiplication and ensure correct results, pre-aggregate the labour and parts costs separately using CTEs or subqueries before joining them back to the header.
 
 # Context
 
