@@ -28,7 +28,7 @@ from wordcloud import WordCloud
 from table_details import get_table_details, get_table_metadata  # Importing the function
 from openai import AzureOpenAI
 from langchain_openai import AzureChatOpenAI
-
+from SM_examples import get_examples
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
@@ -134,7 +134,17 @@ llm = AzureChatOpenAI(
 databases = ["Azure SQL"]
 question_dropdown = os.getenv('Question_dropdown')
 
+import datetime
 
+def convert_dates(obj):
+    if isinstance(obj, dict):
+        return {k: convert_dates(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_dates(item) for item in obj]
+    elif isinstance(obj, (datetime.date, datetime.datetime)):
+        return obj.isoformat()
+    else:
+        return obj
 class Table(BaseModel):
     """Table in SQL database."""
     name: str = Field(description="Name of table in SQL database.")
@@ -779,8 +789,9 @@ async def submit_query(
         try:
             relationships = find_relationships_for_tables(["mh_ro_hdr_details","MH_RO_PARTS","MH_CUST_VERBATIM","MH_MODEL_MASTER","MH_AD_AI_DIMENSION","MH_RO_LABOUR"] , 'table_relation.json')
             table_details = get_table_details(table_name=chosen_tables)
+            examples = get_examples(llm_reframed_query)
             logger.info(f"relationships: {relationships}")
-            response, chosen_tables, tables_data, agent_executor, final_prompt = invoke_chain(
+            response, chosen_tables, tables_data, final_prompt = invoke_chain(
                 llm_reframed_query,  # Using the reframed query here
                 request.session['messages'],
                 model,
@@ -789,7 +800,8 @@ async def submit_query(
                 table_details,
                 selected_business_rule,
                 current_question_type,
-                relationships
+                relationships,
+                examples
             )
 
             response_data["langprompt"] = str(final_prompt)
@@ -837,7 +849,7 @@ async def submit_query(
         #     "content": response_data["chat_response"]
         # })
 
-        return JSONResponse(content=response_data)
+        return JSONResponse(content=convert_dates(response_data))
 
     except HTTPException as he:
         # Capture error details
@@ -992,18 +1004,20 @@ def display_table_with_styles(data, table_name, page_number, records_per_page):
 @app.get("/get_table_data/")
 @app.get("/get_table_data")
 async def get_table_data(
+    request:Request,
+
     table_name: str = Query(...),
     page_number: int = Query(1),
     records_per_page: int = Query(10),
 ):
     """Fetch paginated and styled table data."""
     try:
-        # Check if the requested table exists in session state
-        if "tables_data" not in session_state or table_name not in session_state["tables_data"]:
+        # Check if the requested table exists in the tables_data from the initial response
+        if "tables_data" not in request.query_params or table_name not in request.query_params["tables_data"]:
             raise HTTPException(status_code=404, detail=f"Table {table_name} data not found.")
 
-        # Retrieve the data for the specified table
-        data = session_state["tables_data"][table_name]
+        # Retrieve the data for the specified table from the query params
+        data = request.query_params["tables_data"][table_name]
         total_records = len(data)
         total_pages = (total_records + records_per_page - 1) // records_per_page
 
@@ -1034,8 +1048,6 @@ async def get_table_data(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating table data: {str(e)}")
-
-
 class QuestionTypeRequest(BaseModel):
     question_type: str
 @app.post("/set-question-type")

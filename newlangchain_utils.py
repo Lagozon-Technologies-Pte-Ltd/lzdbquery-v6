@@ -3,17 +3,13 @@ import pandas as pd
 from google.cloud import bigquery
 import datetime
 from dotenv import load_dotenv
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder,FewShotChatMessagePromptTemplate,PromptTemplate # type: ignore
+# from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder,FewShotChatMessagePromptTemplate,PromptTemplate # type: ignore
 import pandas as pd
 import os
 import configure
 from operator import itemgetter
-from langchain.chains.openai_tools import create_extraction_chain_pydantic 
-from langchain_core.pydantic_v1 import BaseModel, Field
-from langchain_openai import ChatOpenAI 
 #from  langchain_openai.chat_models import with_structured_output
 import json
-from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.prompts.example_selector import SemanticSimilarityExampleSelector
 from openai import AzureOpenAI
@@ -102,7 +98,7 @@ SQL_MAX_OVERFLOW = int(os.getenv("SQL_MAX_OVERFLOW", 10))
 
 SQL_DATABASE_URL = (
     f"mssql+pyodbc://{SQL_DB_USER}:{SQL_DB_PASSWORD}@{SQL_DB_SERVER}:{SQL_DB_PORT}/{SQL_DB_NAME}"
-    f"?driver={SQL_DB_DRIVER}"
+    f"?driver={SQL_DB_DRIVER}&Connection+Timeout=120"
 )
 
 
@@ -300,7 +296,7 @@ def get_sql_db():
 
 
 
-def get_chain(question, _messages, selected_model, selected_subject, selected_database, table_details, selected_business_rule,question_type,relationships):
+def get_chain(question, _messages, selected_model, selected_subject, selected_database, table_details, selected_business_rule,question_type,relationships, examples):
     if selected_database == 'GCP':
         prompt_file = "GCP_prompt.txt"
     elif selected_database == 'PostgreSQL-Azure':
@@ -324,18 +320,18 @@ def get_chain(question, _messages, selected_model, selected_subject, selected_da
     FINAL_PROMPT = load_prompt()
     # Get the static part of the prompt
     static_prompt = FINAL_PROMPT
-    example_prompt = ChatPromptTemplate.from_messages(
-        [
-            # ("human", "{input}\nSQLQuery:"),
-            ("human", "{input}"),
-            ("ai", "{query}"),
-        ]
-    )
-    few_shot_prompt = FewShotChatMessagePromptTemplate(
-        example_prompt=example_prompt,
-        example_selector=get_example_selector("sql_query_examples.json"),
-        input_variables=["input","top_k","table_info"],
-    )
+    # example_prompt = ChatPromptTemplate.from_messages(
+    #     [
+    #         # ("human", "{input}\nSQLQuery:"),
+    #         ("human", "{input}"),
+    #         ("ai", "{query}"),
+    #     ]
+    # )
+    # few_shot_prompt = FewShotChatMessagePromptTemplate(
+    #     example_prompt=example_prompt,
+    #     example_selector=get_example_selector("sql_query_examples.json"),
+    #     input_variables=["input","top_k","table_info"],
+    # )
     
     business_glossary = get_business_glossary_text()
     formatted_relationships = []
@@ -349,28 +345,23 @@ def get_chain(question, _messages, selected_model, selected_subject, selected_da
     
     # print("Few shot prompt : " , few_shot_prompt.invoke({{"input": "List all parts used in a particular repair order RO22A002529",
     # "top_k": "2", "table_info":""}}))
-    
-    if question_type == "generic":
-        
+    def examples_to_str(examples):
+            lines = []
+            for i, ex in enumerate(examples, 1):
+                lines.append(f"Example {i}:")
+                lines.append(f"  input: {ex['input']}")
+                lines.append(f"  query: {ex['query']['query']}")  # Access nested query
+                lines.append("")  # blank line between examples
+            return "\n".join(lines)
+    examples_str = examples_to_str(examples)
 
-        final_prompt1 = ChatPromptTemplate.from_messages(
-            [
-                ("system", static_prompt.format(table_info=table_details,  Business_Glossary = business_glossary,relationships=relationships_str)),
-                few_shot_prompt,
-                MessagesPlaceholder(variable_name="messages"),
-                ("human", "{input}"),
-            ]
-        )
+    if question_type == "generic":
+
+        final_prompt1 = static_prompt.format(table_info=table_details,  Business_Glossary = business_glossary,relationships=relationships_str, examples = examples_str)
     elif question_type =="usecase":
-        final_prompt1 = ChatPromptTemplate.from_messages(
-            [
-                ("system", static_prompt.format(table_info=table_details, Business_Rule = selected_business_rule, Business_Glossary = business_glossary, relationships=relationships_str)),
-                few_shot_prompt,
-                MessagesPlaceholder(variable_name="messages"),
-                ("human", "{input}"),
-            ]
-        )
+        final_prompt1 = static_prompt.format(table_info=table_details, Business_Rule = selected_business_rule, Business_Glossary = business_glossary, relationships=relationships_str, examples = examples_str)
     final_prompt = final_prompt1
+    print("prompt here: ", final_prompt)
     # if selected_database=="GCP":
     #         db = BigQuerySQLDatabase()
     # elif selected_database=="PostgreSQL-Azure":
@@ -379,33 +370,63 @@ def get_chain(question, _messages, selected_model, selected_subject, selected_da
         db = get_sql_db()
     print("Generate Query Starting")
 
-    #     final_prompt=final_prompt2    
-    generate_query = create_sql_query_chain(llm, db, final_prompt)
-    SQL_Statement = generate_query.invoke({"question": question, "messages": _messages})
+    try:
+   
+        response = azure_openai_client.chat.completions.create(
+            model=AZURE_DEPLOYMENT_NAME,
+            messages=[
+            {"role": "system", "content": final_prompt},
+            {"role": "user", "content": question}
+        ],
+        temperature=0,  # Lower temperature for more predictable, structured output
+        response_format={"type": "json_object"}  # This is the key parameter!
+        )
+        print(f"new llm response {response}")
+    # The response content will be a JSON string
+        response_content = response.choices[0].message.content
+        
+        # Parse the guaranteed JSON string into a Python dictionary
+        json_output = json.loads(response_content)
 
-    # Override QuerySQLDataBaseTool validation
+        # Now you can safely access the keys
+        print("--- LLM Output (Parsed) ---")
+        print(f"Description: {json_output.get('description')}")
+
+        SQL_Statement = json_output.get('query')
+        print(f"Query: {json_output.get('query')}")
+        print(f"Error: {json_output.get('error')}")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    #     final_prompt=final_prompt2    
+    # generate_query = create_sql_query_chain(llm, db, final_prompt)
+    # SQL_Statement = generate_query.invoke({"question": question, "messages": _messages})
+
+    # # Override QuerySQLDataBaseTool validation
     class CustomQuerySQLDatabaseTool(QuerySQLDataBaseTool):
         def _init_(self, db):
             if not isinstance(db, SQLDatabase):
                 raise ValueError("db must be an instance of SQLDatabase")
             super()._init_(db=db)
 
-    execute_query = CustomQuerySQLDatabaseTool(db=db)
+    # execute_query = CustomQuerySQLDatabaseTool(db=db)
     
-    chain = (
-        RunnablePassthrough.assign(table_names_to_use=lambda _: db.get_table_names()) |  # Get table names
-        RunnablePassthrough.assign(query=generate_query).assign(
-            result=itemgetter("query")
-        )
-    )
+    # chain = (
+    #     RunnablePassthrough.assign(table_names_to_use=lambda _: ["MH_RO_HDR_DETAILS", "MH_RO_PARTS", "MH_CUST_VERBATIM", "MH_MODEL_MASTER", "MH_AD_AI_DIMENSION", "MH_RO_LABOUR"]) |
+    #     RunnablePassthrough.assign(query=generate_query).assign(
+    #         result=itemgetter("query")
+    #     )
+    # )
     
         
     
-    return chain,  SQL_Statement, db,final_prompt1
+    # return chain,  SQL_Statement, db,final_prompt1
+    print(f"Generated SQL Statement before execution: {SQL_Statement}")
 
+    return json_output, final_prompt1, db
 
-
-def invoke_chain(question, messages, selected_model, selected_subject, selected_database, table_info, selected_business_rule, question_type, relationships):
+def invoke_chain(question, messages, selected_model, selected_subject, selected_database, table_info, selected_business_rule, question_type, relationships, examples):
     print(question, messages, selected_model, selected_subject, selected_database)
     response = None
     SQL_Statement = None
@@ -413,23 +434,25 @@ def invoke_chain(question, messages, selected_model, selected_subject, selected_
     try:
         print('Model used:', selected_model)
         history = create_history(messages)
-        chain, SQL_Statement, db, final_prompt = get_chain(
+        json_output, final_prompt, db = get_chain(
             question, history.messages, selected_model, selected_subject,
-            selected_database, table_info, selected_business_rule, question_type, relationships
-        )
-        SQL_Statement = SQL_Statement.replace("SQL Query:", "").strip()
+            selected_database, table_info, selected_business_rule, question_type, relationships, examples
+        )  ##we get query output from get chain
+        SQL_Statement = json_output["query"]
 
-        response = chain.invoke({
-            "question": question,
-            "top_k": 1,
-            "messages": history.messages,
-            "table_details": table_info
-        })
+        # SQL_Statement = SQL_Statement.replace("SQL Query:", "").strip()
+
+        # response = chain.invoke({
+        #     "question": question,
+        #     "top_k": 1,
+        #     "messages": history.messages,
+        #     "table_details": table_info
+        # })
         print("Question:", question)
-        print("Response:", response)
+        print("Response:", json_output)
 
         tables_data = {}
-        query = response["query"]
+        query = SQL_Statement
         print(f"Executing SQL Query: {query}")
         # if selected_database == "GCP":
         #     result_json = db.run(query)
@@ -451,13 +474,13 @@ def invoke_chain(question, messages, selected_model, selected_subject, selected_
             df = pd.DataFrame(rows, columns=columns)
             tables_data["Table data"] = df
         # Include SQL_Statement in the return tuple
-        return response, db_tables, tables_data, db, final_prompt
+        return json_output, db_tables, tables_data, final_prompt
 
     except Exception as e:
         print("Error:", e)
         # Return whatever response was generated, or None if none was generated
         # Also return SQL_Statement and final_prompt if available
-        return response, [], {}, e, final_prompt
+        return response, [], {}, final_prompt
 
 
 def create_history(messages):

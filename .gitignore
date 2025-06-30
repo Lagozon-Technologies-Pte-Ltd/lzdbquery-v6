@@ -169,3 +169,4 @@ static/automotive_wordcloud.png
 static/automotive_wordcloud.png
 /db_env
 .github/workflows/main_lzdbquery-playground-v4.yml
+/db_examples
