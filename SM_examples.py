@@ -11,7 +11,7 @@ AZURE_OPENAI_API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION', "2024-02-0
 AZURE_DEPLOYMENT_NAME = os.environ.get('AZURE_DEPLOYMENT_NAME')
 AZURE_EMBEDDING_DEPLOYMENT_NAME= os.environ.get('AZURE_EMBEDDING_DEPLOYMENT_NAME')
 
-#openai_client = OpenAI(api_key="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")  # Use your OpenAI or Azure OpenAI key
+
 openai.api_type = "azure"
 openai.api_key = AZURE_OPENAI_API_KEY
 openai.api_base = AZURE_OPENAI_ENDPOINT  
