@@ -1,6 +1,7 @@
 
 const loadingDiv = document.getElementById('loading');
 let tableName;
+let clientTableData = {};
 let isRecording = false;
 let mediaRecorder;
 let audioChunks = [];
@@ -102,23 +103,6 @@ async function generateChart() {
         console.error("Error generating chart:", error);
         alert("An error occurred while generating the chart.");
     }
-}
-function changePage(tableName, pageNumber, recordsPerPage) {
-    if (pageNumber < 1) return;
-
-    // Corrected: Using template literals to construct the URL
-    fetch(`/get_table_data?table_name=${tableName}&page_number=${pageNumber}&records_per_page=${recordsPerPage}`)
-        .then(response => response.json())
-        .then(data => {
-            const tableDiv = document.getElementById(`${tableName}_table`);
-            if (tableDiv) {
-                tableDiv.innerHTML = data.table_html;
-            }
-            updatePaginationLinks(tableName, pageNumber, data.total_pages, recordsPerPage);
-        })
-        .catch(error => {
-            console.error('Error fetching table data:', error);
-        });
 }
 function openTab(evt, tabName) {
     let i, tabcontent, tablinks;
@@ -340,7 +324,15 @@ async function sendMessage() {
         });
 
         const data = await response.json();
-
+        if (data.tables_data) {
+            // Convert the table data from server to a format we can use
+            clientTableData = {};
+            for (const tableName in data.tables_data) {
+                if (data.tables_data[tableName] && data.tables_data[tableName]['Table data']) {
+                    clientTableData[tableName] = data.tables_data[tableName]['Table data'];
+                }
+            }
+        }
         // Always show these elements regardless of success/error
         sqlQueryContent.textContent = data.query || "";
         interpPromptContent.textContent = data.interprompt || "";
@@ -355,7 +347,7 @@ async function sendMessage() {
         // Hide typing indicator
         typingIndicator.style.display = "none";
         table_data = data.tables_data;
-
+        glob_table_data = table_data
         if (!response.ok) {
             // Error case - show error message but keep prompts visible
             chatMessages.innerHTML += `
@@ -426,7 +418,74 @@ async function sendMessage() {
         langPromptContent.textContent = "";
     }
 }
-// Your existing mic recording function
+function setupClientPagination(tableName, fullData, currentPage, recordsPerPage) {
+    if (!fullData || !Array.isArray(fullData)) {
+        console.error(`Invalid data for table ${tableName}`, fullData);
+        return;
+    }
+    
+    const totalRecords = fullData.length;
+    const totalPages = Math.ceil(totalRecords / recordsPerPage);
+    
+    // Ensure currentPage is within bounds
+    currentPage = Math.max(1, Math.min(currentPage, totalPages));
+    
+    renderTablePage(tableName, fullData, currentPage, recordsPerPage);
+    updatePaginationLinks(tableName, currentPage, totalPages, recordsPerPage);
+}
+function changePage(tableName, pageNumber, recordsPerPage) {
+    console.log(`Changing to page ${pageNumber} for table ${tableName}`);
+    console.log('Client table data:', clientTableData);
+    
+    const fullData = clientTableData[tableName];
+    if (!fullData) {
+        console.error(`No data found for table: ${tableName}`);
+        return;
+    }
+    
+    setupClientPagination(tableName, fullData, pageNumber, recordsPerPage);
+}
+
+function renderTablePage(tableName, fullData, pageNumber, recordsPerPage) {
+    const startIndex = (pageNumber - 1) * recordsPerPage;
+    const endIndex = startIndex + recordsPerPage;
+    const pageData = fullData.slice(startIndex, endIndex);
+    
+    // Pass pageNumber to generateTableHtml
+    const tableHtml = generateTableHtml(pageData, pageNumber, recordsPerPage);
+    
+    const tableDiv = document.getElementById(`${tableName}_table`);
+    if (tableDiv) {
+        tableDiv.innerHTML = tableHtml;
+    }
+}
+function generateTableHtml(data, pageNumber = 1, recordsPerPage = 10) {
+    if (!data || data.length === 0) return '<div class="no-data">No data available</div>';
+    
+    let html = '<table class="data-table"><thead><tr><th>S.No</th>';
+    
+    // Create headers from the first item's keys
+    Object.keys(data[0]).forEach(header => {
+        html += `<th>${header}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    // Calculate starting serial number based on page number
+    const startSerial = (pageNumber - 1) * recordsPerPage + 1;
+    
+    // Create rows with correct serial numbers
+    data.forEach((row, index) => {
+        html += `<tr><td>${startSerial + index}</td>`; // Use calculated serial number
+        
+        Object.values(row).forEach(cell => {
+            html += `<td>${cell}</td>`;
+        });
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    return html;
+}// Your existing mic recording function
 async function toggleRecording() {
     const micButton = document.getElementById("chat-mic-button");
 
@@ -784,6 +843,10 @@ function updatePageContent(data) {
     // Handle table display (if data exists)
     if (data.tables && data.tables.length > 0) {
         data.tables.forEach((table) => {
+            if (data.tables_data && data.tables_data[table.table_name]) {
+                clientTableData[table.table_name] = data.tables_data[table.table_name]['Table data'] ||
+                    data.tables_data[table.table_name];
+            }
             const tableWrapper = document.createElement("div");
             tableWrapper.innerHTML = `
                 <div id="${table.table_name}_table">${table.table_html}</div>
@@ -805,10 +868,10 @@ function updatePageContent(data) {
             downloadButton.onclick = () => downloadSpecificTable(table_data);
             xlsxbtn.appendChild(downloadButton);
 
-            updatePaginationLinks(
+            setupClientPagination(
                 table.table_name,
+                clientTableData[table.table_name],
                 table.pagination.current_page,
-                table.pagination.total_pages,
                 table.pagination.records_per_page
             );
         });

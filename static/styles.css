@@ -13,33 +13,37 @@ body {
     color: #21126b;
     font-size: 18px;
 }
-.data-table {
-    width: 100%;
-    margin-bottom: 1rem;
-    border-collapse: collapse;
+/* Pointer cursors for clickable elements */
+a, button, input[type="button"], input[type="submit"], 
+input[type="reset"], [role="button"], .btn, 
+.tab button, .switch, .close-btn, .page-item a,
+.download-btn, #send-button, #chat-mic-button,
+#view-sql-query-btn, #add-to-faqs-btn, #send-email-btn,
+#interpBtn, #langchainBtn, #generate-chart-button {
+    cursor: pointer !important;
 }
 
-.data-table th {
-    background-color: #333;
-    color: white;
-    font-weight: bold;
-    font-size: 16px;
-    padding: 8px;
-    text-align: left;
+/* Text input cursors */
+input[type="text"], input[type="search"], input[type="email"], 
+input[type="password"], input[type="number"], input[type="tel"],
+textarea, [contenteditable] {
+    cursor: text;
 }
 
-.data-table td {
-    border: 2px solid black;
-    padding: 5px;
+/* Table specific cursors */
+.data-table tr {
+    cursor: default;
 }
-/* Make the serial number column stand out */
-.data-table td:first-child {
-    font-weight: bold;
-    background-color: #f5f5f5;
-    text-align: center;
+
+/* Disabled elements */
+[disabled], :disabled {
+    cursor: not-allowed !important;
 }
-.data-table tr:nth-child(even) {
-    background-color: #f2f2f2;
+
+/* Links within messages */
+.message-content a {
+    cursor: pointer;
+    text-decoration: underline;
 }
 .query-details-header {
     display: flex;
