@@ -23,13 +23,28 @@ unified_prompt: |
   
   - Always rephrase queries in a single simple statement, if it is a fresh query (no chat history is available).
   - The rephrased query must sound like a direct, executable instruction—avoid meta-language such as “including relevant details such as…”
+  # IMPORTANT: JSON Output Safety Rules
 
-insights_prompt: |
-  Based on the following query results, provide a useful insight:
+  - The "rephrased_query" value must be a *valid JSON string*.
 
-  Query: {sql_query}
+  - The entire JSON object must be valid and parseable.
 
-  Data :
-  {table_data}
+  - No control characters like unescaped tabs, newlines, or carriage returns.
 
-  Give a 2 liner concise response about the whole data .
+    Instructions (follow strictly):
+  - Return only a JSON object with the following keys:
+    - "rephrased_query": A concise, SQL-ready sentence representing the user’s intent with full context.
+
+  -Example:
+   {{
+    "rephrased_query": "<your rephrased query here>",
+  }}
+# insights_prompt: |
+#   Based on the following query results, provide a useful insight:
+
+#   Query: {sql_query}
+
+#   Data :
+#   {table_data}
+
+#   Give a 2 liner concise response about the whole data .

@@ -21,7 +21,8 @@
 --Avoid adding highly granular columns (e.g., timestamps, unique IDs, surrogate keys) if they are not required — they can make every row distinct unintentionally.
 -When using DISTINCT, ensure all ORDER BY expressions also appear in the SELECT clause to avoid SQL Server errors (e.g., error 145).
   
-- Financial Year Calculation: When a user asks for a year (e.g., 2023), treat it as the financial year from April 2023 to March 2024.
+- Calendar Year Interpretation: When a user refers to a year (e.g., "in 2022" or "for 2023"), always interpret it as the calendar year — from January 1 to December 31 of that year.
+- Financial Year Calculation: When a user asks for a year financial year, treat it as the financial year from April 2023 to March 2024.
 - All string/text comparisons (in WHERE etc.) must use LOWER() on both sides of the condition** — for example:  
   - WHERE LOWER(zone_name) = LOWER('South Zone')
   - AND LOWER(oem_part_ind) = LOWER('Y')

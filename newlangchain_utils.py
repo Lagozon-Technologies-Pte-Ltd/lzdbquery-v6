@@ -1,6 +1,6 @@
 import os, ast
 import pandas as pd
-from google.cloud import bigquery
+# from google.cloud import bigquery
 import datetime
 from dotenv import load_dotenv
 # from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder,FewShotChatMessagePromptTemplate,PromptTemplate # type: ignore
@@ -10,11 +10,11 @@ import configure
 from operator import itemgetter
 #from  langchain_openai.chat_models import with_structured_output
 import json
-from langchain.vectorstores import Chroma
-from langchain.prompts.example_selector import SemanticSimilarityExampleSelector
+# from langchain.vectorstores import Chroma
+# from langchain.prompts.example_selector import SemanticSimilarityExampleSelector
 from openai import AzureOpenAI
-from langchain_openai import AzureChatOpenAI
-from langchain.embeddings import AzureOpenAIEmbeddings 
+# from langchain_openai import AzureChatOpenAI
+# from langchain.embeddings import AzureOpenAIEmbeddings 
 
 
 AZURE_OPENAI_API_KEY = os.environ.get('AZURE_OPENAI_API_KEY')
@@ -30,13 +30,13 @@ azure_openai_client = AzureOpenAI(
 )
 
 # OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-llm = AzureChatOpenAI(
-    openai_api_version=AZURE_OPENAI_API_VERSION,
-    azure_deployment=AZURE_DEPLOYMENT_NAME,
-    azure_endpoint=AZURE_OPENAI_ENDPOINT,
-    api_key=AZURE_OPENAI_API_KEY,
-    temperature=0
-)
+# llm = AzureChatOpenAI(
+#     openai_api_version=AZURE_OPENAI_API_VERSION,
+#     azure_deployment=AZURE_DEPLOYMENT_NAME,
+#     azure_endpoint=AZURE_OPENAI_ENDPOINT,
+#     api_key=AZURE_OPENAI_API_KEY,
+#     temperature=0
+# )
 from typing import List
 load_dotenv()
 import csv 
@@ -49,12 +49,12 @@ from io import StringIO
 # LANGCHAIN_ENDPOINT=os.getenv("LANGCHAIN_ENDPOINT")
 
 
-from langchain_community.utilities.sql_database import SQLDatabase
+# from langchain_community.utilities.sql_database import SQLDatabase
 #from langchain.agents import create_sql_agent
 #from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
-from langchain.chains import create_sql_query_chain
-from langchain_openai import ChatOpenAI
-from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
+# from langchain.chains import create_sql_query_chain
+# from langchain_openai import ChatOpenAI
+# from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain.memory import ChatMessageHistory
 from operator import itemgetter
 from google.oauth2 import service_account
@@ -71,7 +71,7 @@ from langchain_openai import ChatOpenAI
 
 
 
-from table_details import get_table_details , get_tables , itemgetter , create_extraction_chain_pydantic, Table 
+# from table_details import get_table_details , get_tables , itemgetter ,  Table 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
@@ -201,74 +201,74 @@ def create_bigquery_uri(project_id, dataset_id):
     return f"{project_id}.{dataset_id}"
 
 
-class BigQuerySQLDatabase(SQLDatabase):
-    def _init_(self):
-        try:
-            # Create credentials dictionary from environment variables
-            credentials_info = {
-                "type": os.getenv('GOOGLE_CREDENTIALS_TYPE'),
-                "project_id": os.getenv('GOOGLE_CREDENTIALS_PROJECT_ID'),
-                "private_key_id": os.getenv('GOOGLE_CREDENTIALS_PRIVATE_KEY_ID'),
-                "private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDln+0curmestQu\nEjLJWLY5YkCdmhlEZfWvCapN41hO6mS6nwVeYQw4ICP8ltbdsAZrsmzVgtf3GC+G\ngL99wG5WeEd/F1XPTemg8mKbMAf67nGWMc3z5yV3U4sGEnDglCVh1gHhDQC/px2K\nWopLVC/F46zQ+ERj8RjFCXExuZrzCExuFvRrT6dalDOqH8XFLeonnLoqJkPVgjvW\nfuuihW5pMiOfGyXksabfOc1GAzt4Ixbp0rsUL10ZqTPz+FOQ4WeJcs1slgRSQxHC\nmnTKx5kAT8MHEChGzhX9/BHDDzjTZL5isEybWjbKuUEcqCpc1FajFMT8NSDayifz\nEtHnxHhjAgMBAAECggEAAJYeec2r1d5/1Ttx3F3qf59TUJ/9qjwZu0SQQf2DOSvy\nuLHbYYGcUupehJ3LIBmiTIxyvEKrwibe3eJdLo5jQqZccY3OZbnN93T+8lHAMs4F\njkpRKj/WB0dF1uImLDXaTAPfM1lezVsgO71ESZ6L53fKBYrSXGLP/bVOfbcJTuwn\nFjAgNdpj2xYl+G9B+qkuNBHZ7uVnQ3w2l4zvRAWIIwtRj1qjCe7ynac9xizkrEMI\nae1WCKCZQbJGOvOl4Mu00cVvfspwzHfQZwkn+dVjN2+HNQTbzsM14CzDTmXGjD6e\n5/s3OYj7Tt4lV/PIVsf/y/zz3mtVV5D73yWQiZbiNQKBgQD9HfRuKnrKFrnyTy31\nRkSqZTfZh2smRqiR4RZssgZUCKD5GZtQ3/opWkh2HSBdQY8tLkxiu7wJ9WKmHMVV\nnUANqcBxXwsaLdMVEt4C7Y3aav8owIn+rLxD0BuQkjbX+7cx0UTnNhmg97HpYJr5\nNV+xF2LyviTemPpviWI2W6N9FwKBgQDoPXjR+L8ow0Sxhu5IjLWWp86X4KXQOCuY\n/Qbk+L3ibM8DRpgZ+nwH9zDWcGIS3Kk5t8pIQSYbthYBugkekUvtCt2dRyxIPLK9\nXnaCJFSbtpd1aaII/YF6Gp0yaap0B3+x9L4w1UrvLHK3xUcVdeb3DDCj0IVAqBg9\nqtLoktbmlQKBgQC1cTqdmh/pK79hnjbAov1n9CTD71n01yPRZrvPcRIuPP0/c4at\nw9CswgY9fQWNNAixh4XEJPVXYiq0Dt26UH3xDWVhH5Ny0bSFX7/781QDZT3Bdbu1\n7xcJuW15BgcAbnVU5cFxyIs4ozZKqDCPQh51cOFCRuFhG+IyABaCBtC8QwKBgHvw\nam0sIeBALYXMa5geN76Z+WAGTJdNkr7Hsgk6UiPnS6cE4qFikxSxL8gRG9XTGyCp\nW/OpiQva5e2v+bPteKadWN3ZoOFAO2diZT5Y4ypijHvljsrbd2DRmTjROV1IrzYq\nVeG7wozXnLVEPAZQ8JzBTafu3V4/Fwi6BGqICtXtAoGAb1QEQxRfq87q2q7DxIbm\nlxooi07TB1eevVw6r2qNRQQ5DHF+vb65Tw9ZV3E0g8/fJRD2gFC+yxgfI3iUVyyh\nIBBjKgCJOgp6zOS1L+RTNQswXxxLw+5B9j/oArHZ24j7YtKPLr+bcTNypzXn8dh8\n1U/HqFUTo1bsy8Pu35MXyco=\n-----END PRIVATE KEY-----",
-                "client_email": os.getenv('GOOGLE_CREDENTIALS_CLIENT_EMAIL'),
-                "client_id": os.getenv('GOOGLE_CREDENTIALS_CLIENT_ID'),
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/bqserviceacc%40prateekproject-450509.iam.gserviceaccount.com",
-                "universe_domain": "googleapis.com"
-            }
+# class BigQuerySQLDatabase(SQLDatabase):
+#     def _init_(self):
+#         try:
+#             # Create credentials dictionary from environment variables
+#             credentials_info = {
+#                 "type": os.getenv('GOOGLE_CREDENTIALS_TYPE'),
+#                 "project_id": os.getenv('GOOGLE_CREDENTIALS_PROJECT_ID'),
+#                 "private_key_id": os.getenv('GOOGLE_CREDENTIALS_PRIVATE_KEY_ID'),
+#                 "private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDln+0curmestQu\nEjLJWLY5YkCdmhlEZfWvCapN41hO6mS6nwVeYQw4ICP8ltbdsAZrsmzVgtf3GC+G\ngL99wG5WeEd/F1XPTemg8mKbMAf67nGWMc3z5yV3U4sGEnDglCVh1gHhDQC/px2K\nWopLVC/F46zQ+ERj8RjFCXExuZrzCExuFvRrT6dalDOqH8XFLeonnLoqJkPVgjvW\nfuuihW5pMiOfGyXksabfOc1GAzt4Ixbp0rsUL10ZqTPz+FOQ4WeJcs1slgRSQxHC\nmnTKx5kAT8MHEChGzhX9/BHDDzjTZL5isEybWjbKuUEcqCpc1FajFMT8NSDayifz\nEtHnxHhjAgMBAAECggEAAJYeec2r1d5/1Ttx3F3qf59TUJ/9qjwZu0SQQf2DOSvy\nuLHbYYGcUupehJ3LIBmiTIxyvEKrwibe3eJdLo5jQqZccY3OZbnN93T+8lHAMs4F\njkpRKj/WB0dF1uImLDXaTAPfM1lezVsgO71ESZ6L53fKBYrSXGLP/bVOfbcJTuwn\nFjAgNdpj2xYl+G9B+qkuNBHZ7uVnQ3w2l4zvRAWIIwtRj1qjCe7ynac9xizkrEMI\nae1WCKCZQbJGOvOl4Mu00cVvfspwzHfQZwkn+dVjN2+HNQTbzsM14CzDTmXGjD6e\n5/s3OYj7Tt4lV/PIVsf/y/zz3mtVV5D73yWQiZbiNQKBgQD9HfRuKnrKFrnyTy31\nRkSqZTfZh2smRqiR4RZssgZUCKD5GZtQ3/opWkh2HSBdQY8tLkxiu7wJ9WKmHMVV\nnUANqcBxXwsaLdMVEt4C7Y3aav8owIn+rLxD0BuQkjbX+7cx0UTnNhmg97HpYJr5\nNV+xF2LyviTemPpviWI2W6N9FwKBgQDoPXjR+L8ow0Sxhu5IjLWWp86X4KXQOCuY\n/Qbk+L3ibM8DRpgZ+nwH9zDWcGIS3Kk5t8pIQSYbthYBugkekUvtCt2dRyxIPLK9\nXnaCJFSbtpd1aaII/YF6Gp0yaap0B3+x9L4w1UrvLHK3xUcVdeb3DDCj0IVAqBg9\nqtLoktbmlQKBgQC1cTqdmh/pK79hnjbAov1n9CTD71n01yPRZrvPcRIuPP0/c4at\nw9CswgY9fQWNNAixh4XEJPVXYiq0Dt26UH3xDWVhH5Ny0bSFX7/781QDZT3Bdbu1\n7xcJuW15BgcAbnVU5cFxyIs4ozZKqDCPQh51cOFCRuFhG+IyABaCBtC8QwKBgHvw\nam0sIeBALYXMa5geN76Z+WAGTJdNkr7Hsgk6UiPnS6cE4qFikxSxL8gRG9XTGyCp\nW/OpiQva5e2v+bPteKadWN3ZoOFAO2diZT5Y4ypijHvljsrbd2DRmTjROV1IrzYq\nVeG7wozXnLVEPAZQ8JzBTafu3V4/Fwi6BGqICtXtAoGAb1QEQxRfq87q2q7DxIbm\nlxooi07TB1eevVw6r2qNRQQ5DHF+vb65Tw9ZV3E0g8/fJRD2gFC+yxgfI3iUVyyh\nIBBjKgCJOgp6zOS1L+RTNQswXxxLw+5B9j/oArHZ24j7YtKPLr+bcTNypzXn8dh8\n1U/HqFUTo1bsy8Pu35MXyco=\n-----END PRIVATE KEY-----",
+#                 "client_email": os.getenv('GOOGLE_CREDENTIALS_CLIENT_EMAIL'),
+#                 "client_id": os.getenv('GOOGLE_CREDENTIALS_CLIENT_ID'),
+#                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+#                 "token_uri": "https://oauth2.googleapis.com/token",
+#                 "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+#                 "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/bqserviceacc%40prateekproject-450509.iam.gserviceaccount.com",
+#                 "universe_domain": "googleapis.com"
+#             }
 
-            # Load credentials from dictionary
-            credentials = service_account.Credentials.from_service_account_info(
-                credentials_info,
-                scopes=["https://www.googleapis.com/auth/bigquery"]
-            )
+#             # Load credentials from dictionary
+#             credentials = service_account.Credentials.from_service_account_info(
+#                 credentials_info,
+#                 scopes=["https://www.googleapis.com/auth/bigquery"]
+#             )
 
-            self.project_id = credentials_info["project_id"]
-            self.client = bigquery.Client(credentials=credentials, project=self.project_id)
+#             self.project_id = credentials_info["project_id"]
+#             self.client = bigquery.Client(credentials=credentials, project=self.project_id)
 
-        except Exception as e:
-            raise ValueError(f"Error loading credentials: {e}")
-    def run(self, command: str):
-        """Executes a SQL query and returns results as JSON."""
-        try:
-            query_job = self.client.query(command)
-            results = query_job.result()
-            return [dict(row.items()) for row in results]
-        except Exception as e:
-            return f"Error executing SQL command: {e}"
+#         except Exception as e:
+#             raise ValueError(f"Error loading credentials: {e}")
+#     def run(self, command: str):
+#         """Executes a SQL query and returns results as JSON."""
+#         try:
+#             query_job = self.client.query(command)
+#             results = query_job.result()
+#             return [dict(row.items()) for row in results]
+#         except Exception as e:
+#             return f"Error executing SQL command: {e}"
 
-    def get_table_names(self):
-        """Returns all available tables in the project."""
-        tables_list = []
-        datasets = list(self.client.list_datasets())
-        for dataset in datasets:
-            dataset_id = dataset.dataset_id
-            tables = self.client.list_tables(dataset_id)
-            for table in tables:
-                tables_list.append(f"{dataset_id}.{table.table_id}")
-        return tables_list
+#     def get_table_names(self):
+#         """Returns all available tables in the project."""
+#         tables_list = []
+#         datasets = list(self.client.list_datasets())
+#         for dataset in datasets:
+#             dataset_id = dataset.dataset_id
+#             tables = self.client.list_tables(dataset_id)
+#             for table in tables:
+#                 tables_list.append(f"{dataset_id}.{table.table_id}")
+#         return tables_list
 
-    def get_table_info(self, table_names=None):
-        """Returns schema information for given tables."""
-        if table_names is None:
-            table_names = self.get_table_names()
+#     def get_table_info(self, table_names=None):
+#         """Returns schema information for given tables."""
+#         if table_names is None:
+#             table_names = self.get_table_names()
 
-        schema_info = ""
-        for table_name in table_names:
-            try:
-                dataset_id, table_id = table_name.split(".")
-                table_ref = self.client.dataset(dataset_id).table(table_id)
-                table = self.client.get_table(table_ref)
+#         schema_info = ""
+#         for table_name in table_names:
+#             try:
+#                 dataset_id, table_id = table_name.split(".")
+#                 table_ref = self.client.dataset(dataset_id).table(table_id)
+#                 table = self.client.get_table(table_ref)
 
-                schema_info += f"\nTable: {table_name}\nColumns:\n"
-                for column in table.schema:
-                    schema_info += f"  {column.name} ({column.field_type}) {'NULLABLE' if column.is_nullable else 'NOT NULLABLE'}\n"
-            except Exception as e:
-                schema_info += f"Error getting schema for table {table_name}: {e}\n"
+#                 schema_info += f"\nTable: {table_name}\nColumns:\n"
+#                 for column in table.schema:
+#                     schema_info += f"  {column.name} ({column.field_type}) {'NULLABLE' if column.is_nullable else 'NOT NULLABLE'}\n"
+#             except Exception as e:
+#                 schema_info += f"Error getting schema for table {table_name}: {e}\n"
 
-        return schema_info
+#         return schema_info
 
 
 
@@ -286,8 +286,8 @@ def get_sql_db():
         print("Connection successful")
 
         # Wrap the engine in a LangChain SQLDatabase object
-        db = SQLDatabase(engine)
-        return db
+        # db = SQLDatabase(engine)
+        return engine
 
     except SQLAlchemyError as e:
         print(f"Error connecting to the database: {e}")
@@ -296,7 +296,7 @@ def get_sql_db():
 
 
 
-def get_chain(question, _messages, selected_model, selected_subject, selected_database, table_details, selected_business_rule,question_type,relationships, examples):
+def get_chain(question, selected_database, table_details, selected_business_rule,question_type,relationships, examples):
     if selected_database == 'GCP':
         prompt_file = "GCP_prompt.txt"
     elif selected_database == 'PostgreSQL-Azure':
@@ -306,13 +306,13 @@ def get_chain(question, _messages, selected_model, selected_subject, selected_da
         prompt_file = "Generic_azure_prompt.txt" if question_type == "generic" else "Azure_prompt.txt"
     
     
-    llm = AzureChatOpenAI(
-    openai_api_version=AZURE_OPENAI_API_VERSION,
-    azure_deployment=AZURE_DEPLOYMENT_NAME,
-    azure_endpoint=AZURE_OPENAI_ENDPOINT,
-    api_key=AZURE_OPENAI_API_KEY,
-    temperature=0
-)
+#     llm = AzureChatOpenAI(
+#     openai_api_version=AZURE_OPENAI_API_VERSION,
+#     azure_deployment=AZURE_DEPLOYMENT_NAME,
+#     azure_endpoint=AZURE_OPENAI_ENDPOINT,
+#     api_key=AZURE_OPENAI_API_KEY,
+#     temperature=0
+# )
     def load_prompt():
         with open(prompt_file, "r", encoding="utf-8") as file:
             return file.read()
@@ -366,8 +366,6 @@ def get_chain(question, _messages, selected_model, selected_subject, selected_da
     #         db = BigQuerySQLDatabase()
     # elif selected_database=="PostgreSQL-Azure":
     #     db = get_postgres_db(selected_subject, db_tables)
-    if selected_database=="Azure SQL":
-        db = get_sql_db()
     print("Generate Query Starting")
 
     try:
@@ -404,11 +402,11 @@ def get_chain(question, _messages, selected_model, selected_subject, selected_da
     # SQL_Statement = generate_query.invoke({"question": question, "messages": _messages})
 
     # # Override QuerySQLDataBaseTool validation
-    class CustomQuerySQLDatabaseTool(QuerySQLDataBaseTool):
-        def _init_(self, db):
-            if not isinstance(db, SQLDatabase):
-                raise ValueError("db must be an instance of SQLDatabase")
-            super()._init_(db=db)
+    # class CustomQuerySQLDatabaseTool(QuerySQLDataBaseTool):
+    #     def _init_(self, db):
+    #         if not isinstance(db, SQLDatabase):
+    #             raise ValueError("db must be an instance of SQLDatabase")
+    #         super()._init_(db=db)
 
     # execute_query = CustomQuerySQLDatabaseTool(db=db)
     
@@ -424,7 +422,7 @@ def get_chain(question, _messages, selected_model, selected_subject, selected_da
     # return chain,  SQL_Statement, db,final_prompt1
     print(f"Generated SQL Statement before execution: {SQL_Statement}")
 
-    return json_output, final_prompt1, db
+    return json_output, final_prompt1
 
 def invoke_chain(question, messages, selected_model, selected_subject, selected_database, table_info, selected_business_rule, question_type, relationships, examples):
     print(question, messages, selected_model, selected_subject, selected_database)
@@ -433,9 +431,9 @@ def invoke_chain(question, messages, selected_model, selected_subject, selected_
     final_prompt = None
     try:
         print('Model used:', selected_model)
-        history = create_history(messages)
-        json_output, final_prompt, db = get_chain(
-            question, history.messages, selected_model, selected_subject,
+        # history = create_history(messages)
+        json_output, final_prompt = get_chain(
+            question, 
             selected_database, table_info, selected_business_rule, question_type, relationships, examples
         )  ##we get query output from get chain
         SQL_Statement = json_output["query"]
@@ -465,9 +463,10 @@ def invoke_chain(question, messages, selected_model, selected_subject, selected_
         #         df = pd.read_sql(sql=query, con=conn.connection)
         #     tables_data[table] = df
         #     print(table)
-        #     break
+        #     break 
         if selected_database == "Azure SQL":
-            result = db._engine.execute(query)
+            db = get_sql_db()
+            result = db.execute(query)
             print("result is: ", result)
             rows = result.fetchall()
             columns = result.keys()
@@ -483,14 +482,14 @@ def invoke_chain(question, messages, selected_model, selected_subject, selected_
         return response, [], {}, final_prompt
 
 
-def create_history(messages):
-    history = ChatMessageHistory()
-    for message in messages:
-        if message["role"] == "user":
-            history.add_user_message(message["content"])
-        else:
-            history.add_ai_message(message["content"])
-    return history
+# def create_history(messages):
+#     history = ChatMessageHistory()
+#     for message in messages:
+#         if message["role"] == "user":
+#             history.add_user_message(message["content"])
+#         else:
+#             history.add_ai_message(message["content"])
+#     return history
 
 def escape_single_quotes(input_string):
     return input_string.replace("'", "''")
@@ -566,46 +565,46 @@ def get_business_rule(intent, file_path='business_rules.txt'):
 
     return rule if rule else f"No business rule defined for intent: {intent}"
 
-def get_example_selector(json_file_path: str):
-    """
-    Returns a SemanticSimilarityExampleSelector initialized with examples from a JSON file.
+# def get_example_selector(json_file_path: str):
+#     """
+#     Returns a SemanticSimilarityExampleSelector initialized with examples from a JSON file.
     
-    Args:
-        json_file_path (str): Path to the JSON file containing examples
+#     Args:
+#         json_file_path (str): Path to the JSON file containing examples
         
-    Returns:
-        SemanticSimilarityExampleSelector: Selector configured with examples
-    """
-    # Load examples from JSON file
-    with open(json_file_path, 'r', encoding='utf-8') as file:
-        examples = json.load(file)
+#     Returns:
+#         SemanticSimilarityExampleSelector: Selector configured with examples
+#     """
+#     # Load examples from JSON file
+#     with open(json_file_path, 'r', encoding='utf-8') as file:
+#         examples = json.load(file)
     
-    # Validate examples structure
-    if not isinstance(examples, list):
-        raise ValueError("JSON file should contain a list of examples")
-    if len(examples) == 0:
-        raise ValueError("No examples found in JSON file")
-    if not all(isinstance(example, dict) and 'input' in example and 'query' in example for example in examples):
-        raise ValueError("Each example should be a dictionary with 'input' and 'query' keys")
+#     # Validate examples structure
+#     if not isinstance(examples, list):
+#         raise ValueError("JSON file should contain a list of examples")
+#     if len(examples) == 0:
+#         raise ValueError("No examples found in JSON file")
+#     if not all(isinstance(example, dict) and 'input' in example and 'query' in example for example in examples):
+#         raise ValueError("Each example should be a dictionary with 'input' and 'query' keys")
     
-    # Create Azure OpenAI embeddings instance
-    azure_embeddings = AzureOpenAIEmbeddings(
-        azure_deployment= AZURE_EMBEDDING_DEPLOYMENT_NAME,  # Your embedding model deployment name
-        openai_api_version=AZURE_OPENAI_API_VERSION,
-        azure_endpoint=AZURE_OPENAI_ENDPOINT,
-        api_key=AZURE_OPENAI_API_KEY,
-    )
+#     # Create Azure OpenAI embeddings instance
+#     azure_embeddings = AzureOpenAIEmbeddings(
+#         azure_deployment= AZURE_EMBEDDING_DEPLOYMENT_NAME,  # Your embedding model deployment name
+#         openai_api_version=AZURE_OPENAI_API_VERSION,
+#         azure_endpoint=AZURE_OPENAI_ENDPOINT,
+#         api_key=AZURE_OPENAI_API_KEY,
+#     )
     
-    # Create example selector with Azure embeddings
-    example_selector = SemanticSimilarityExampleSelector.from_examples(
-        examples,
-        azure_embeddings,  # Use Azure embeddings instead of OpenAIEmbeddings
-        Chroma,
-        k=3,
-        input_keys=["input"],
-    )
+#     # Create example selector with Azure embeddings
+#     example_selector = SemanticSimilarityExampleSelector.from_examples(
+#         examples,
+#         azure_embeddings,  # Use Azure embeddings instead of OpenAIEmbeddings
+#         Chroma,
+#         k=3,
+#         input_keys=["input"],
+#     )
     
-    return example_selector
+#     return example_selector
 
 def find_relationships_for_tables(table_names, json_file_path):
     # Load the JSON

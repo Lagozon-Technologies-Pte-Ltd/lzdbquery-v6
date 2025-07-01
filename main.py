@@ -3,15 +3,15 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 from fastapi.staticfiles import StaticFiles
-from langchain_openai import ChatOpenAI
+# from langchain_openai import ChatOpenAI
 import plotly.graph_objects as go, plotly.express as px
 import openai, yaml, os, csv,pandas as pd, base64, uuid
 from configure import gauge_config
-from pydantic import BaseModel
+# from pydantic import BaseModel
 from io import BytesIO, StringIO
-from langchain.chains.openai_tools import create_extraction_chain_pydantic
-from langchain_core.pydantic_v1 import Field
-from langchain_openai import ChatOpenAI
+# from langchain.chains.openai_tools import create_extraction_chain_pydantic
+from pydantic import Field, BaseModel
+# from langchain_openai import ChatOpenAI
 from newlangchain_utils import *
 from dotenv import load_dotenv
 # from state import session_state, session_lock
@@ -27,7 +27,7 @@ import zipfile
 from wordcloud import WordCloud
 from table_details import get_table_details, get_table_metadata  # Importing the function
 from openai import AzureOpenAI
-from langchain_openai import AzureChatOpenAI
+# from langchain_openai import AzureChatOpenAI
 from SM_examples import get_examples
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -118,18 +118,19 @@ AZURE_DEPLOYMENT_NAME = os.environ.get('AZURE_DEPLOYMENT_NAME')
 
 # Initialize the Azure OpenAI client
 azure_openai_client = AzureOpenAI(
+    azure_deployment=AZURE_DEPLOYMENT_NAME,
+
     api_key=AZURE_OPENAI_API_KEY,
     api_version=AZURE_OPENAI_API_VERSION,
     azure_endpoint=AZURE_OPENAI_ENDPOINT
 )
 
-llm = AzureChatOpenAI(
-    openai_api_version=AZURE_OPENAI_API_VERSION,
-    azure_deployment=AZURE_DEPLOYMENT_NAME,
-    azure_endpoint=AZURE_OPENAI_ENDPOINT,
-    api_key=AZURE_OPENAI_API_KEY,
-    temperature=0
-)
+# llm = AzureOpenAI(
+#     api_version=AZURE_OPENAI_API_VERSION,
+#     azure_deployment=AZURE_DEPLOYMENT_NAME,
+#     azure_endpoint=AZURE_OPENAI_ENDPOINT,
+#     api_key=AZURE_OPENAI_API_KEY,
+# )
 
 databases = ["Azure SQL"]
 question_dropdown = os.getenv('Question_dropdown')
@@ -725,7 +726,27 @@ async def submit_query(
                     keyphrases=keyphrases
                 )
                 
-                llm_reframed_query = llm.invoke(unified_prompt).content.strip()
+                # llm_reframed_query = llm.invoke(unified_prompt).content.strip()
+                response = azure_openai_client.chat.completions.create(
+                    model=AZURE_DEPLOYMENT_NAME,
+                    messages=[
+                    {"role": "system", "content": unified_prompt},
+                    {"role": "user", "content": user_query}
+                ],
+                temperature=0,  # Lower temperature for more predictable, structured output
+                response_format={"type": "json_object"}  # This is the key parameter!
+                )
+
+            # The response content will be a JSON string
+                response_content = response.choices[0].message.content
+                
+                # Parse the guaranteed JSON string into a Python dictionary
+                json_output = json.loads(response_content)
+                logger.info(f"json output in usecase: {json_output}")
+                # Now you can safely access the keys
+                llm_reframed_query = json_output.get("rephrased_query")
+                logger.info(f"reframed query after modification: {llm_reframed_query}")
+
                 intent_result = intent_classification(llm_reframed_query)
                 
                 if not intent_result:
@@ -759,10 +780,29 @@ async def submit_query(
                     table_metadata=tables_metadata
                 )
                 
-                llm_response_str = llm.invoke(unified_prompt).content.strip()
+                # llm_response_str = llm.invoke(unified_prompt).content.strip()
+                response = azure_openai_client.chat.completions.create(
+                    model=AZURE_DEPLOYMENT_NAME,
+                    messages=[
+                    {"role": "system", "content": unified_prompt},
+                    {"role": "user", "content": user_query}
+                ],
+                temperature=0,  # Lower temperature for more predictable, structured output
+                response_format={"type": "json_object"}  # This is the key parameter!
+                )
+
+            # The response content will be a JSON string
+                response_content = response.choices[0].message.content
+                
+                # Parse the guaranteed JSON string into a Python dictionary
+                json_output = json.loads(response_content)
+
+                # Now you can safely access the keys
+                llm_reframed_query = json_output.get("rephrased_query")
+                logger.info(f"reframed query after modification: {llm_reframed_query}")
                 try:
-                    llm_result = json.loads(llm_response_str)
-                    llm_reframed_query = llm_result.get("rephrased_query", "")
+                    # llm_result = json.loads(llm_response_str)
+                    llm_reframed_query = json_output.get("rephrased_query", "")
                     chosen_tables = db_tables
                     selected_business_rule = ""
                 except json.JSONDecodeError:
