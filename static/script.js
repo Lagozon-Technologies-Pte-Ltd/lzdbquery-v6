@@ -795,7 +795,17 @@ function updatePageContent(data) {
     const selectedSection = document.getElementById('section-dropdown').value;
     // Always update these elements regardless of success/failure
     userQueryDisplay.querySelector('span').textContent = data.user_query || "";
-    sqlQueryContent.textContent = data.query || "No SQL query available";
+    const formattedQuery = data.query
+            .replace(/FROM/g, '\nFROM')
+            .replace(/WHERE/g, '\nWHERE')
+            .replace(/INNER JOIN/g, '\nINNER JOIN')
+            .replace(/LEFT JOIN/g, '\nLEFT JOIN')
+            .replace(/RIGHT JOIN/g, '\nRIGHT JOIN')
+            .replace(/FULL JOIN/g, '\nFULL JOIN')
+            .replace(/GROUP BY/g, '\nGROUP BY')
+            .replace(/ORDER BY/g, '\nORDER BY')
+            .replace(/HAVING/g, '\nHAVING');
+    sqlQueryContent.textContent = formattedQuery || "No SQL query available";
 
     // Clear containers
     tablesContainer.innerHTML = "";
