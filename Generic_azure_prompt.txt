@@ -70,6 +70,11 @@ Missing this rule will be treated as an invalid query.
      SUM(rp.partamount) ← This causes error 8117 on VARCHAR fields.
 
 ## Data Type Safety and Casting (Azure SQL Specific)
+- Always apply TRY_CAST(column AS FLOAT) in the WHERE clause when comparing against numeric values if the column is not explicitly numeric or may contain strings (e.g., VARCHAR).
+- This applies to all filters like column > 10, column = 0, etc.
+  -- Correct: WHERE TRY_CAST([rp].[discnt_rate] AS FLOAT) > 10
+  -- Incorrect: WHERE [rp].[discnt_rate] > 10
+- Missing this will lead to conversion errors if the column contains decimal strings or non-integer text values.
 - If any column used in aggregation (e.g., SUM, AVG) may be stored as VARCHAR or not explicitly numeric in the schema, use TRY_CAST(column AS FLOAT) before applying the aggregation.
   - Example: SUM(TRY_CAST(rp.partamount AS FLOAT))
 - Always wrap numeric expressions used with ROUND(), SUM(), or arithmetic operations in TRY_CAST(... AS FLOAT) unless the column is confirmed to be a numeric type.

@@ -830,12 +830,14 @@ async def submit_query(
                 for col in df.select_dtypes(include=['number']).columns:
                     tables_data["Table data"][col] = df[col].apply(format_number)
             
-            # Prepare table HTML
-            tables_html = prepare_table_html(tables_data, page, records_per_page)
+            tables_data_dict = {k: v.to_dict(orient='records') for k, v in tables_data.items()}
 
-            response_data["tables"] = tables_html
-            response_data["tables_data"] = {'Table data': tables_data['Table data'].to_dict(orient='records')}
-            # Generate insights if data exists
+            # Prepare table HTML
+            initial_page_html = prepare_table_html(tables_data, 1,10)
+
+            response_data["tables"] = initial_page_html
+            response_data["tables_data"] = tables_data_dict           
+         # Generate insights if data exists
             # data_preview = next(iter(session_state['tables_data'].values())).head(5).to_string(index=False)
             # response_data["chat_response"] = ""  # Placeholder for actual insights
             
@@ -909,36 +911,35 @@ async def reset_session(request: Request):
     logger.info(f"Question type is: {request.session.get('current_question_type')}")
     return {"message": "Session state cleared successfully"}
 
-def prepare_table_html(tables_data, page, records_per_page):
+def prepare_table_html(tables_data, page_number, records_per_page):
     """
-    Prepares HTML for displaying table data with pagination.
-
-    Args:
-        tables_data (dict): A dictionary of table names and their corresponding DataFrames.
-        page (int): The current page number.
-        records_per_page (int): The number of records to display per page.
-
-    Returns:
-        list: A list of dictionaries containing table name, HTML, and pagination information.
+    Prepares HTML for displaying table data with pagination (client-side version).
+    Returns the first page by default.
     """
     tables_html = []
     for table_name, data in tables_data.items():
         total_records = len(data)
         total_pages = (total_records + records_per_page - 1) // records_per_page
-        html_table = display_table_with_styles(data, table_name, page, records_per_page)
-        print("html table: ", data)
-        print("end of table data")
+        
+        # Get the first page by default
+        start_index = (page_number - 1) * records_per_page
+        end_index = start_index + records_per_page
+        page_data = data.iloc[start_index:end_index]
+        
+        # Generate styled HTML
+        styled_html = display_table_with_styles(page_data, table_name)
+        
         tables_html.append({
             "table_name": table_name,
-            "table_html": html_table,
+            "table_html": styled_html,
             "pagination": {
-                "current_page": page,
+                "current_page": page_number,
                 "total_pages": total_pages,
                 "records_per_page": records_per_page,
+                "total_records": total_records
             }
         })
     return tables_html
-
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     """
@@ -967,87 +968,79 @@ async def read_root(request: Request):
     })
 
 # Table data display endpoint
-def display_table_with_styles(data, table_name, page_number, records_per_page):
+def display_table_with_styles(data, table_name):
     """
-    Displays a Pandas DataFrame as an HTML table with custom styles and pagination.
-
-    Args:
-        data (pd.DataFrame): The DataFrame to display.
-        table_name (str): The name of the table.
-        page_number (int): The current page number.
-        records_per_page (int): The number of records to display per page.
-
-    Returns:
-        str: An HTML string representation of the styled table.
+    Displays a Pandas DataFrame as an HTML table with custom styles.
     """
-    start_index = (page_number - 1) * records_per_page
-    end_index = start_index + records_per_page
-    page_data = data.iloc[start_index:end_index]
-    # Ensure that the index always starts from 1 for each page
-    page_data.index = range(start_index + 1, start_index + 1 + len(page_data))
-    styled_table = page_data.style.set_table_attributes('style="border: 2px solid black; border-collapse: collapse;"') \
-        .set_table_styles(
-            [{
-                'selector': 'th',
-                'props': [('background-color', '#333'),
-                          ('color', 'white')]
-            },
-                {
-                    'selector': 'td',
-                    'props': [('border', '1px solid black')]
-                }
-            ])
+    # Ensure that the index starts from 1
+    data.index = range(1, len(data) + 1)
     
-    return styled_table.to_html()
+    styled_table = (
+        data.style
+        .set_table_attributes('class="data-table" style="border: 2px solid black; border-collapse: collapse;"')
+        .set_table_styles([
+            {'selector': 'th', 'props': [
+                ('background-color', '#333'), 
+                ('color', 'white'),
+                ('font-weight', 'bold'),
+                ('font-size', '16px')
+            ]},
+            {'selector': 'td', 'props': [
+                ('border', '2px solid black'),
+                ('padding', '5px')
+            ]}
+        ])
+        .to_html(escape=False)
+    )
+    return styled_table
 
+# @app.get("/get_table_data/")
+# @app.get("/get_table_data")
+# async def get_table_data(
+#     request:Request,
 
-@app.get("/get_table_data/")
-@app.get("/get_table_data")
-async def get_table_data(
-    request:Request,
+#     table_name: str = Query(...),
+#     page_number: int = Query(1),
+#     records_per_page: int = Query(10),
+# ):
+#     """Fetch paginated and styled table data."""
+#     try:
+#         # Check if the requested table exists in the tables_data from the initial response
+#         if "tables_data" not in request.query_params or table_name not in request.query_params["tables_data"]:
+#             raise HTTPException(status_code=404, detail=f"Table {table_name} data not found.")
 
-    table_name: str = Query(...),
-    page_number: int = Query(1),
-    records_per_page: int = Query(10),
-):
-    """Fetch paginated and styled table data."""
-    try:
-        # Check if the requested table exists in the tables_data from the initial response
-        if "tables_data" not in request.query_params or table_name not in request.query_params["tables_data"]:
-            raise HTTPException(status_code=404, detail=f"Table {table_name} data not found.")
+#         # Retrieve the data for the specified table from the query params
+#         data = request.query_params["tables_data"][table_name]
+#         total_records = len(data)
+#         total_pages = (total_records + records_per_page - 1) // records_per_page
 
-        # Retrieve the data for the specified table from the query params
-        data = request.query_params["tables_data"][table_name]
-        total_records = len(data)
-        total_pages = (total_records + records_per_page - 1) // records_per_page
+#         # Ensure valid page number
+#         if page_number < 1 or page_number > total_pages:
+#             raise HTTPException(status_code=400, detail="Invalid page number.")
 
-        # Ensure valid page number
-        if page_number < 1 or page_number > total_pages:
-            raise HTTPException(status_code=400, detail="Invalid page number.")
+#         # Slice data for the requested page
+#         start_index = (page_number - 1) * records_per_page
+#         end_index = start_index + records_per_page
+#         page_data = data.iloc[start_index:end_index]
 
-        # Slice data for the requested page
-        start_index = (page_number - 1) * records_per_page
-        end_index = start_index + records_per_page
-        page_data = data.iloc[start_index:end_index]
+#         # Style the table as HTML
+#         styled_table = (
+#             page_data.style.set_table_attributes('style="border: 2px solid black; border-collapse: collapse;"')
+#             .set_table_styles([
+#                 {'selector': 'th', 'props': [('background-color', '#333'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '16px')]},
+#                 {'selector': 'td', 'props': [('border', '2px solid black'), ('padding', '5px')]},
+#             ])
+#             .to_html(escape=False)  # Render as HTML
+#         )
 
-        # Style the table as HTML
-        styled_table = (
-            page_data.style.set_table_attributes('style="border: 2px solid black; border-collapse: collapse;"')
-            .set_table_styles([
-                {'selector': 'th', 'props': [('background-color', '#333'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '16px')]},
-                {'selector': 'td', 'props': [('border', '2px solid black'), ('padding', '5px')]},
-            ])
-            .to_html(escape=False)  # Render as HTML
-        )
-
-        return {
-            "table_html": styled_table,
-            "page_number": page_number,
-            "total_pages": total_pages,
-            "total_records": total_records,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating table data: {str(e)}")
+#         return {
+#             "table_html": styled_table,
+#             "page_number": page_number,
+#             "total_pages": total_pages,
+#             "total_records": total_records,
+#         }
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Error generating table data: {str(e)}")
 class QuestionTypeRequest(BaseModel):
     question_type: str
 @app.post("/set-question-type")

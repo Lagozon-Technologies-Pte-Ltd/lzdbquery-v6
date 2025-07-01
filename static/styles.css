@@ -13,7 +13,34 @@ body {
     color: #21126b;
     font-size: 18px;
 }
+.data-table {
+    width: 100%;
+    margin-bottom: 1rem;
+    border-collapse: collapse;
+}
 
+.data-table th {
+    background-color: #333;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 8px;
+    text-align: left;
+}
+
+.data-table td {
+    border: 2px solid black;
+    padding: 5px;
+}
+/* Make the serial number column stand out */
+.data-table td:first-child {
+    font-weight: bold;
+    background-color: #f5f5f5;
+    text-align: center;
+}
+.data-table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
 .query-details-header {
     display: flex;
     align-items: center;
