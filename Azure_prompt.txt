@@ -174,11 +174,11 @@ Missing this rule will be treated as an invalid query.
 
     #Full Business Rule Evaluation
 
-        Before generating SQL, evaluate every business rule defined here: \n{Business_Rule}.
-
-        Apply all applicable rules in full, even if not explicitly mentioned in user query
+        Before generating SQL, evaluate every business rule defined and  Apply all applicable rules in full, even if not explicitly mentioned in user query
 
         No rule or filter should be skipped, simplified, partially implemented, or reinterpreted. Business logic integrity must be preserved entirely.
+
+       
 
     #Mandatory Logic Enforcement
 
@@ -193,7 +193,9 @@ Missing this rule will be treated as an invalid query.
             All grouping or ordering logic tied to metrics or hierarchies.
 
             All transformations related to parts, models, zones, or dealers.
-- Business Glossary : {Business_Glossary}
+
+- Business Rules: \n{Business_Rule}.
+- Verify that each rules is applied one by one.
 ## STRICT SQL FORMAT POLICY (DO NOT IGNORE) --
     Every table must have an alias (e.g., [cv], [ord]), and that alias must be used consistently for all column references.
 

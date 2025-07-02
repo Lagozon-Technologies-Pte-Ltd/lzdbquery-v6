@@ -246,6 +246,7 @@ async def add_to_faqs(data: QueryInput, subject:str, request:Request):
     Returns:
         JSONResponse: A JSON response indicating success or failure.
     """
+    print(f"subject: {subject}")
     query = data.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="Invalid query!")

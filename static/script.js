@@ -804,7 +804,9 @@ function updatePageContent(data) {
             .replace(/FULL JOIN/g, '\nFULL JOIN')
             .replace(/GROUP BY/g, '\nGROUP BY')
             .replace(/ORDER BY/g, '\nORDER BY')
-            .replace(/HAVING/g, '\nHAVING');
+            .replace(/HAVING/g, '\nHAVING')
+            .replace(/SELECT/g, '\nSELECT')
+            .replace(/ON/g, '\nON');
     sqlQueryContent.textContent = formattedQuery || "No SQL query available";
 
     // Clear containers
@@ -825,16 +827,16 @@ function updatePageContent(data) {
     faqBtn.onclick = () => addToFAQs(selectedSection);
     faqBtn.style.display = "block";
 
-    const emailBtn = document.createElement("button");
-    emailBtn.id = "send-email-btn";
-    emailBtn.textContent = "Send Email";
-    emailBtn.style.display = "block";
-    emailBtn.disabled = !data.tables; // Disable if no tables available
+    // const emailBtn = document.createElement("button");
+    // emailBtn.id = "send-email-btn";
+    // emailBtn.textContent = "Send Email";
+    // emailBtn.style.display = "block";
+    // emailBtn.disabled = !data.tables; // Disable if no tables available
 
     // Add buttons to container
     xlsxbtn.appendChild(viewQueryBtn);
     xlsxbtn.appendChild(faqBtn);
-    xlsxbtn.appendChild(emailBtn);
+    // xlsxbtn.appendChild(emailBtn);
 
     // Add copy button for SQL query
     const copyButton = document.createElement('button');
@@ -893,7 +895,7 @@ function updatePageContent(data) {
 }/**
  *
  */
-function addToFAQs() {
+function addToFAQs(subject) {
     let userQuery = document.querySelector("#user_query_display span").innerText;
 
     if (!userQuery.trim()) {
@@ -901,7 +903,7 @@ function addToFAQs() {
         return;
     }
 
-    fetch('/add_to_faqs', {
+    fetch(`/add_to_faqs?subject=${encodeURIComponent(subject)}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
