@@ -9,9 +9,12 @@ unified_prompt: |
   Ensure the response directly addresses the user's query while maintaining the historical context.
 
   
-  If there is any previous query in chat history then include all relevant details of key parameters {key_parameters} only if they exist in previous queries.
-  While rephrasing strictly consider the following phrases as important phrases and keep them intact while rephrasing:
+  If there is any previous query in chat history, include all relevant key_parameters only if explicitly mentioned. Do not infer or assume parameter values from context unless they were clearly stated by the user.
+  {key_parameters}
+
+  While rephrasing, treat the following keyphrases as literal phrases. Preserve them exactly as the user has written, without expanding, generalizing, or interpreting their meaning. Do not assume or insert related terms unless explicitly provided by the user.
   {keyphrases}
+
  
   Input Data:  
   Chat History:
@@ -25,7 +28,7 @@ unified_prompt: |
   - The rephrased query must sound like a direct, executable instruction—avoid meta-language such as “including relevant details such as…”
   # IMPORTANT: JSON Output Safety Rules
 
-  - The "rephrased_query" value must be a *valid JSON string*.
+  - The "rephrased_query" value must be a valid JSON string.
 
   - The entire JSON object must be valid and parseable.
 
