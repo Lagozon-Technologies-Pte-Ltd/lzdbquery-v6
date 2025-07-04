@@ -26,8 +26,7 @@
 
 ## IMPORTANT RULE : for making the sql query 
 -  Dont use LOWER at the time of making the query 
--  All string comparisons use COLLATE SQL_Latin1_General_CP1_CI_AS for case-insensitive matching  
-    - Write like this using collation:
+-  Always apply COLLATE SQL_Latin1_General_CP1_CI_AS directly on the column before =, LIKE, or NOT LIKE (e.g., [col] COLLATE ... = 'value' or [col] COLLATE ... NOT LIKE '%abc%')    - Write like this using collation:
        WHERE [zone_name] COLLATE SQL_Latin1_General_CP1_CI_AS = 'South Zone'
        AND [oem_part_ind] COLLATE SQL_Latin1_General_CP1_CI_AS = 'Y'
        AND [part_desc] COLLATE SQL_Latin1_General_CP1_CI_AS NOT LIKE '%filter%'
@@ -54,7 +53,7 @@ Missing this rule will be treated as an invalid query.
 - When displaying quarters:
   - Use FORMAT(DATEADD(QUARTER, DATEDIFF(QUARTER, 0, [Date]), 0), 'MMM-yy') AS [Quarter]
   - Also include DATEADD(QUARTER, DATEDIFF(QUARTER, 0, [Date]), 0) AS [_Quarter_Start]
-- Do NOT use formatted month or quarter strings in ORDER BY (they sort alphabetically).
+- Always sort using the unformatted _Month_Start or _Quarter_Start date column in ORDER BY, never the string-formatted [Month] or [Quarter] fields — use those only for display.
 
 # Numeric and Text Formatting
 - When applying numeric functions such as SUM() or ROUND() to a column that may be VARCHAR or TEXT, always use TRY_CAST(column AS FLOAT) inside the function.
@@ -113,6 +112,9 @@ Missing this rule will be treated as an invalid query.
 - If a required column is not available, return:
 - When grouping by a column (e.g., category, group, dealer), include COUNT(*) and STRING_AGG() where meaningful.
 - Ensure grouping columns and aggregated columns are clear and relevant to the intent.
+- When generating query, Do not use = 0 or = 1 with LIKE or NOT LIKE comparisons. LIKE and NOT LIKE should be used as standalone predicates.
+      - Correct: [col] NOT LIKE '%abc%'
+      - Incorrect: [col] NOT LIKE '%abc%' = 0
 
 ## Schema Block -Use strictly the schema for table column names and join conditions Follow these strict rules:
 - ENFORCEMENT RULES:
@@ -165,6 +167,19 @@ Missing this rule will be treated as an invalid query.
     -Do NOT use column references without an alias, even in SELECT, WHERE, JOIN, GROUP BY, or ORDER BY clauses.
     -Do NOT use alias-dot-column syntax like t1.col1 — only [t1].[col1] is allowed.
     -This is not optional — any violation will cause the query to be automatically rejected.
+    - Do not compare boolean expressions to integers. Avoid logic like NOT LIKE '%abc%' = 0 or EXISTS (...) = 1. These are invalid in T-SQL.
+    - When using GROUP BY, only the following types of columns can appear in the SELECT clause:
+
+    Columns included in the GROUP BY clause.
+
+    Columns wrapped inside an aggregate function (e.g., SUM(), COUNT(), AVG(), STRING_AGG(), etc.)
+
+    ❌ Do NOT include any columns in the SELECT clause that are:
+
+    Not part of GROUP BY
+
+    Not inside an aggregate function
+    → This will cause error 8120: "Column ... is invalid in the select list because it is not contained in either an aggregate function or the GROUP BY clause.
 
 
 - Examples :
@@ -180,7 +195,7 @@ Missing this rule will be treated as an invalid query.
 - Include any ORDER BY or GROUP BY columns in the SELECT clause when DISTINCT is used.
 - Adhere to the provided business glossary, financial logic, and formatting rules.
 - Never deviate from schema structure.
-
+- Ensure that final query does not have [col] NOT LIKE '%abc%' = 0 in any manner but should have [col] NOT LIKE '%abc%'.
 
 # Final Validation Checklist Before Returning Query:
 -Are all column references fully qualified with table aliases?

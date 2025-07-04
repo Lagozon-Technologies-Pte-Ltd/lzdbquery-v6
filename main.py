@@ -714,7 +714,7 @@ async def submit_query(
             chat_history = f"{last_msg['role']}: {last_msg['content']}"
         
         logger.info(f"Chat history: {chat_history}")
-        logger.info(f"Messages in session: {request.session['messages']}")
+        logger.info(f"Messages in session for new question: {request.session['messages']}")
         # Step 1: Generate unified prompt based on question type
         try:
             if current_question_type == "usecase":
@@ -752,10 +752,7 @@ async def submit_query(
                 
                 if not intent_result:
                     error_msg = "Please rephrase or add more details to your question as I am not able to assess the Intended Use case"
-                    request.session['messages'].append({
-                        "role": "assistant",
-                        "content": error_msg
-                    })
+                    
                     
                     response_data = {
                         "user_query": user_query,
@@ -813,8 +810,9 @@ async def submit_query(
                     )
             
             # Now add the reframed query to messages instead of original user_query
+            logger.info(f"Now, adding message to history: {llm_reframed_query}")
             request.session['messages'] = [{"role": "user", "content": llm_reframed_query}]
-            
+            logger.info(f"messages in session: {request.session['messages']}")
             response_data["llm_response"] = llm_reframed_query
             response_data["interprompt"] = unified_prompt
             
@@ -832,6 +830,8 @@ async def submit_query(
             table_details = get_table_details(table_name=chosen_tables)
             examples = get_examples(llm_reframed_query)
             logger.info(f"relationships: {relationships}")
+            logger.info(f"messages in session just before invoke chain: {request.session['messages']}")
+
             response, chosen_tables, tables_data, final_prompt = invoke_chain(
                 llm_reframed_query,  # Using the reframed query here
                 request.session['messages'],
@@ -904,10 +904,6 @@ async def submit_query(
             "interprompt": unified_prompt if 'unified_prompt' in locals() else "Not generated due to error"
         })
         
-        request.session['messages'].append({
-            "role": "assistant",
-            "content": f"Error: {he.detail}"
-        })
         
         return JSONResponse(
             content=response_data,

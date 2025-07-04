@@ -340,6 +340,7 @@ async function sendMessage() {
         // Format and display langprompt
         const langdata = data.langprompt?.match(/template='([\s\S]*?)'\)\),/);
         let promptText = langdata ? langdata[1] : data.langprompt || "Not available";
+        console.log(promptText)
         promptText = promptText.replace(/\\n/g, '\n');
         langPromptContent.textContent = promptText;
         Prism.highlightElement(langPromptContent);
