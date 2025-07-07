@@ -829,7 +829,7 @@ async def submit_query(
         try:
             relationships = find_relationships_for_tables(["mh_ro_hdr_details","MH_RO_PARTS","MH_CUST_VERBATIM","MH_MODEL_MASTER","MH_AD_AI_DIMENSION","MH_RO_LABOUR"] , 'table_relation.json')
             table_details = get_table_details(table_name=chosen_tables)
-            examples = get_examples(llm_reframed_query)
+            examples = get_examples(llm_reframed_query, current_question_type)
             logger.info(f"relationships: {relationships}")
             logger.info(f"messages in session just before invoke chain: {request.session['messages']}")
 
