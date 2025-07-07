@@ -700,8 +700,7 @@ async def submit_query(
 
         # Get current question type from session
         current_question_type = request.session.get("current_question_type", "generic")
-        # prompts = request.session.get("prompts", load_prompts("generic_prompt.yaml"))
-        prompts = load_prompts("generic_prompt.yaml")
+        prompts = request.session.get("prompts", load_prompts("generic_prompt.yaml"))
         request.session['user_query'] = user_query  # Still store original query separately if needed
 
         # Handle session messages
@@ -944,7 +943,7 @@ async def reset_session(request: Request):
     # Set default session variables
     request.session['messages'] = []
     request.session["current_question_type"] = "generic"
-    # request.session["prompts"] = load_prompts("generic_prompt.yaml")
+    request.session["prompts"] = load_prompts("generic_prompt.yaml")
 
     logger.info(f"Question type is: {request.session.get('current_question_type')}")
     return {"message": "Session state cleared successfully"}
@@ -995,7 +994,7 @@ async def read_root(request: Request):
     # Only set defaults if not already set
     if "current_question_type" not in request.session:
         request.session["current_question_type"] = "generic"
-        # request.session["prompts"] = load_prompts("generic_prompt.yaml")
+        request.session["prompts"] = load_prompts("generic_prompt.yaml")
 
     # Pass dynamically populated dropdown options to the template
     return templates.TemplateResponse("index.html", {
@@ -1087,7 +1086,7 @@ async def set_question_type(payload: QuestionTypeRequest, request: Request):
     filename = "generic_prompt.yaml" if current_question_type == "generic" else "chatbot_prompt.yaml"
     prompts = load_prompts(filename)
     request.session["current_question_type"] = current_question_type
-    # request.session["prompts"] = prompts  # If you want to store prompts per session
+    request.session["prompts"] = prompts  # If you want to store prompts per session
 
     print("Received question type:", current_question_type)
     return JSONResponse(content={"message": "Question type set", "prompts": prompts})
