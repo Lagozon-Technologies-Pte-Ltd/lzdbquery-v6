@@ -1,83 +1,56 @@
 import chromadb
-# from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 import json
 import os
 
-# Load your prepared metadata
-with open("sql_query_examples.json",encoding="utf-8") as f:
-    examples = json.load(f)
+# Load both types of examples
+with open("sql_query_examples_generic.json", encoding="utf-8") as f:
+    generic_examples = json.load(f)
 
+with open("sql_query_examples_usecase.json", encoding="utf-8") as f:
+    usecase_examples = json.load(f)
 
-
-# After loading columns and tables:
-# print("Columns count:", len(columns))  # Check if columns is empty
-# print("Tables count:", len(tables))    # Check if tables is empty
-
+# Azure OpenAI settings
 AZURE_OPENAI_API_KEY = os.environ.get('AZURE_OPENAI_API_KEY')
 AZURE_OPENAI_ENDPOINT = os.environ.get('AZURE_OPENAI_ENDPOINT')
 AZURE_OPENAI_API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION', "2024-02-01")
-AZURE_DEPLOYMENT_NAME = os.environ.get('AZURE_DEPLOYMENT_NAME')
-AZURE_EMBEDDING_DEPLOYMENT_NAME= os.environ.get('AZURE_EMBEDDING_DEPLOYMENT_NAME')
-Chroma_Query_Examples = os.environ.get('Chroma_Query_Examples')
+AZURE_EMBEDDING_DEPLOYMENT_NAME = os.environ.get('AZURE_EMBEDDING_DEPLOYMENT_NAME')
+CHROMA_DB_PATH = os.environ.get('Chroma_Query_Examples')
 
-
-import chromadb.utils.embedding_functions as embedding_functions
+# Initialize embedding function
 openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=AZURE_OPENAI_API_KEY,               
-    api_base=AZURE_OPENAI_ENDPOINT,            
+    api_key=AZURE_OPENAI_API_KEY,
+    api_base=AZURE_OPENAI_ENDPOINT,
     api_type="azure",
-    api_version=AZURE_OPENAI_API_VERSION,       
-    model_name=AZURE_EMBEDDING_DEPLOYMENT_NAME         
+    api_version=AZURE_OPENAI_API_VERSION,
+    model_name=AZURE_EMBEDDING_DEPLOYMENT_NAME
 )
 
-
-# Initialize ChromaDB persistent client (new API)
-client = chromadb.PersistentClient(path=Chroma_Query_Examples )  # Only the path argument is needed[4]
-
-
-# Create a collection for schema elements (tables + columns)
-# schema_collection = client.get_or_create_collection(name="schema_elements")
-schema_collection = client.get_or_create_collection(
-    name="example_elements",
-    embedding_function=openai_ef
-)
-
-
-def serialize_metadata(metadata):
-    return {
-        k: json.dumps(v) if isinstance(v, (list, dict)) else v
-        for k, v in metadata.items()
-    }
-
-# def prepare_ingest(items):
-#     filtered_items = [item for item in items if isinstance(item, dict) and 'id' in item]
-#     ids = [item['id'] for item in filtered_items]
-#     documents = [item['document'] for item in filtered_items]
-#     metadatas = [item['metadata'] for item in filtered_items]
-#     return ids, documents, metadatas
+# Initialize ChromaDB client
+client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 
 def prepare_ingest(items):
-
     inputs = [item['input'] for item in items]
     queries = [item['query'] for item in items]
-   
-    # Serialize metadata fields as needed
-    # metadatas = [serialize_metadata(item['query']) for item in items]
-    return inputs,queries
+    return inputs, queries
 
-inputs,queries = prepare_ingest(examples)
+def ingest_examples(examples, collection_name):
+    collection = client.get_or_create_collection(
+        name=collection_name,
+        embedding_function=openai_ef
+    )
+    
+    inputs, queries = prepare_ingest(examples)
+    ids = [f"{collection_name}_pair_{i}" for i in range(len(inputs))]
+    metadatas = [{"query": query} for query in queries]
+    
+    collection.add(
+        ids=ids,
+        documents=inputs,
+        metadatas=metadatas
+    )
+    return collection
 
-print(f"this is our inputs{inputs}")
-print(f"this is our queries{queries}")
-
-ids = [f"sql_pair_{i}" for i in range(len(inputs))]
-metadatas = [{"query": query} for query in queries]
-
-# Ingest into ChromaDB
-schema_collection.add(
-   ids=ids,
-  documents=inputs,
-  metadatas= metadatas
-  
-)
+# Ingest both types of examples
+generic_collection = ingest_examples(generic_examples, "generic_examples")
+usecase_collection = ingest_examples(usecase_examples, "usecase_examples")

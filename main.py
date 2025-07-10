@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Form, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI, Form, HTTPException, Query, UploadFile, File,Depends
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
@@ -30,7 +30,12 @@ from openai import AzureOpenAI
 # from langchain_openai import AzureChatOpenAI
 from SM_examples import get_examples
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
+from logger_custom import logger
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from dependencies import  get_db
+from contextlib import asynccontextmanager
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -44,33 +49,49 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         logging.info(f"Response status: {response.status_code}")
         
         return response
-# Logging configuration
-LOGGING_CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"},
-        "json": {"format": '{"timestamp": "%(asctime)s", "logger": "%(name)s", "level": "%(levelname)s", "message": "%(message)s"}'}
-    },
-    "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "default"},
-        "file": {"class": "logging.FileHandler", "filename": "app.log", "formatter": "json"}
-    },
-    "loggers": {
-        "uvicorn": {"handlers": ["console"], "level": "INFO", "propagate": False},
-        "app": {"handlers": ["console", "file"], "level": "DEBUG", "propagate": False}
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO"
-    }
-}
-dictConfig(LOGGING_CONFIG)
-logger = logging.getLogger("app")
 
 load_dotenv()  # Load environment variables from .env file
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Azure OpenAI LLM
+    # app.state.azure_openai_client = AzureOpenAI(
+    #     azure_deployment=os.environ["AZURE_DEPLOYMENT_NAME"],
+    #     api_key=os.environ["AZURE_OPENAI_API_KEY"],
+    #     api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-02-01"),
+    #     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"]
+    # )
 
-app = FastAPI()
+    # Azure SQL DB
+    engine = create_engine(
+      
+
+        SQL_DATABASE_URL,
+        pool_size=int(SQL_POOL_SIZE),
+        max_overflow=int(SQL_MAX_OVERFLOW),
+        echo=False,
+        pool_recycle=1200,  # Recycle every 20 minutes
+        pool_pre_ping=True  # Validate connection before using
+    )
+    app.state.engine = engine
+    app.state.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+    # # Azure Redis Cache (async)
+    # app.state.redis_client = redis.Redis(
+    #     host=os.environ["REDIS_HOST"],
+    #     port=int(os.environ.get("REDIS_PORT", 6380)),
+    #     password=os.environ["REDIS_KEY"],
+    #     ssl=True,
+    #     decode_responses=True,
+    #     max_connections=20
+    # )
+
+    yield
+
+    engine.dispose()
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 app.add_middleware(LoggingMiddleware)
 # Set up static files and templates
@@ -675,9 +696,11 @@ async def submit_query(
     user_query: str = Form(...),
     page: int = Query(1),
     records_per_page: int = Query(10),
-    model: Optional[str] = Form(AZURE_DEPLOYMENT_NAME)
+    model: Optional[str] = Form(AZURE_DEPLOYMENT_NAME),
+    db: Session = Depends(get_db),
+
 ):
-    logger.info(f"Received /submit request with query: {user_query}, section: {section}")
+    logger.info(f"Received /submit request with query: {user_query}, section: {section}, database: {database}")
     
     # Initialize response structure
     response_data = {
@@ -700,7 +723,8 @@ async def submit_query(
 
         # Get current question type from session
         current_question_type = request.session.get("current_question_type", "generic")
-        prompts = request.session.get("prompts", load_prompts("generic_prompt.yaml"))
+        # prompts = request.session.get("prompts", load_prompts("generic_prompt.yaml")
+        prompts = load_prompts("generic_prompt.yaml")
         request.session['user_query'] = user_query  # Still store original query separately if needed
 
         # Handle session messages
@@ -714,9 +738,11 @@ async def submit_query(
             chat_history = f"{last_msg['role']}: {last_msg['content']}"
         
         logger.info(f"Chat history: {chat_history}")
-        logger.info(f"Messages in session for new question: {request.session['messages']}")
+        # logger.info(f"Messages in session for new question: {request.session['messages']}")
         # Step 1: Generate unified prompt based on question type
         try:
+            logger.info(f"Inside /submit request and user has chosen  {current_question_type}.")
+
             if current_question_type == "usecase":
                 key_parameters = get_key_parameters()
                 keyphrases = get_keyphrases()
@@ -737,16 +763,16 @@ async def submit_query(
                 temperature=0,  # Lower temperature for more predictable, structured output
                 response_format={"type": "json_object"}  # This is the key parameter!
                 )
-
             # The response content will be a JSON string
                 response_content = response.choices[0].message.content
-                
+                logger.info(f"Inside submit function: response recieved is: {response_content}")
+
                 # Parse the guaranteed JSON string into a Python dictionary
                 json_output = json.loads(response_content)
-                logger.info(f"json output in usecase: {json_output}")
+                logger.info(f"Inside submit function, usecase: json output in usecase: {json_output}")
                 # Now you can safely access the keys
                 llm_reframed_query = json_output.get("rephrased_query")
-                logger.info(f"reframed query after modification: {llm_reframed_query}")
+                logger.info(f"Inside submit function, usecase: reframed query after modification: {llm_reframed_query}")
 
                 intent_result = intent_classification(llm_reframed_query)
                 
@@ -791,18 +817,20 @@ async def submit_query(
 
             # The response content will be a JSON string
                 response_content = response.choices[0].message.content
-                
+                logger.info(f"Inside submit function, generic: response recieved is: {response_content}")
+
                 # Parse the guaranteed JSON string into a Python dictionary
                 json_output = json.loads(response_content)
 
                 # Now you can safely access the keys
-                llm_reframed_query = json_output.get("rephrased_query")
-                logger.info(f"reframed query after modification: {llm_reframed_query}")
+                # llm_reframed_query = json_output.get("rephrased_query")
                 try:
                     # llm_result = json.loads(llm_response_str)
                     llm_reframed_query = json_output.get("rephrased_query", "")
                     chosen_tables = db_tables
                     selected_business_rule = ""
+                    logger.info(f"Inside submit function, generic: reframed query after modification: {llm_reframed_query}, chosen tables are: {chosen_tables}")
+
                 except json.JSONDecodeError:
                     raise HTTPException(
                         status_code=500,
@@ -810,9 +838,9 @@ async def submit_query(
                     )
             
             # Now add the reframed query to messages instead of original user_query
-            logger.info(f"Now, adding message to history: {llm_reframed_query}")
+            # logger.info(f"Now, adding message to history: {llm_reframed_query}")
             request.session['messages'] = [{"role": "user", "content": llm_reframed_query}]
-            logger.info(f"messages in session: {request.session['messages']}")
+            # logger.info(f"messages in session: {request.session['messages']}")
             response_data["llm_response"] = llm_reframed_query
             response_data["interprompt"] = unified_prompt
             
@@ -826,13 +854,14 @@ async def submit_query(
         # Rest of your code remains the same...
         # Step 2: Invoke LangChain
         try:
-            relationships = find_relationships_for_tables(["mh_ro_hdr_details","MH_RO_PARTS","MH_CUST_VERBATIM","MH_MODEL_MASTER","MH_AD_AI_DIMENSION","MH_RO_LABOUR"] , 'table_relation.json')
+            relationships = find_relationships_for_tables(chosen_tables , 'table_relation.json')
             table_details = get_table_details(table_name=chosen_tables)
-            examples = get_examples(llm_reframed_query)
+            examples = get_examples(llm_reframed_query, current_question_type)
             logger.info(f"relationships: {relationships}")
             logger.info(f"messages in session just before invoke chain: {request.session['messages']}")
 
             response, chosen_tables, tables_data, final_prompt = invoke_chain(
+                db,
                 llm_reframed_query,  # Using the reframed query here
                 request.session['messages'],
                 model,
@@ -943,7 +972,7 @@ async def reset_session(request: Request):
     # Set default session variables
     request.session['messages'] = []
     request.session["current_question_type"] = "generic"
-    request.session["prompts"] = load_prompts("generic_prompt.yaml")
+    # request.session["prompts"] = load_prompts("generic_prompt.yaml")
 
     logger.info(f"Question type is: {request.session.get('current_question_type')}")
     return {"message": "Session state cleared successfully"}
@@ -994,7 +1023,7 @@ async def read_root(request: Request):
     # Only set defaults if not already set
     if "current_question_type" not in request.session:
         request.session["current_question_type"] = "generic"
-        request.session["prompts"] = load_prompts("generic_prompt.yaml")
+        # request.session["prompts"] = load_prompts("generic_prompt.yaml")
 
     # Pass dynamically populated dropdown options to the template
     return templates.TemplateResponse("index.html", {
@@ -1086,7 +1115,7 @@ async def set_question_type(payload: QuestionTypeRequest, request: Request):
     filename = "generic_prompt.yaml" if current_question_type == "generic" else "chatbot_prompt.yaml"
     prompts = load_prompts(filename)
     request.session["current_question_type"] = current_question_type
-    request.session["prompts"] = prompts  # If you want to store prompts per session
+    # request.session["prompts"] = prompts  # If you want to store prompts per session
 
     print("Received question type:", current_question_type)
     return JSONResponse(content={"message": "Question type set", "prompts": prompts})
