@@ -364,7 +364,6 @@ def get_chain(question, selected_database, table_details, selected_business_rule
     # )
     
     business_glossary = get_business_glossary_text()
-    logger.info(f"relationships in newlang: {relationships}")
     relationships_str = relationships or "No relationships found"
     logger.info(f"submit query --> invoke_chain --> get_chain : relationship_str: {relationships_str}")
 
@@ -417,9 +416,9 @@ def get_chain(question, selected_database, table_details, selected_business_rule
         # print(f"Description: {json_output.get('description')}")
 
         SQL_Statement = json_output.get('query')
-        logger.info(f"Query: {json_output.get('query')}")
-        logger.info(f"Error: {json_output.get('error')}")
-        logger.info(f"Description: {json_output.get('description')}")
+        # logger.info(f"Query: {json_output.get('query')}")
+        logger.info(f"submit query --> invoke_chain --> get_chain :LLM SQL Generation Error: {json_output.get('error')}")
+        logger.info(f"submit query --> invoke_chain --> get_chain : Description: {json_output.get('description')}")
     except Exception as e:
         logger.error(f"Error in submit query --> invoke_chain --> get_chain : {e}")
 
@@ -446,12 +445,12 @@ def get_chain(question, selected_database, table_details, selected_business_rule
         
     
     # return chain,  SQL_Statement, db,final_prompt1
-    logger.info(f"Generated SQL Statement before execution returned from get_chain : {SQL_Statement}")
+    # logger.info(f" submit query --> invoke_chain --> get_chain, Generated SQL Statement : {SQL_Statement}")
 
     return json_output, final_prompt1
 
 def invoke_chain(db,question, messages, selected_model, selected_subject, selected_database, table_info, selected_business_rule, question_type, relationships, examples):
-    logger.info(f"Submit query, now in invoke chain functin in newlangchain_utils, parameters are: {question, messages, selected_model, selected_subject, selected_database}")
+    logger.info(f"submit query --> invoke_chain , parameters are: {question, messages, selected_model, selected_subject, selected_database}")
     response = None
     SQL_Statement = None
     final_prompt = None
@@ -462,6 +461,8 @@ def invoke_chain(db,question, messages, selected_model, selected_subject, select
             selected_database, table_info, selected_business_rule, question_type, relationships, examples
         )  ##we get query output from get chain
         SQL_Statement = json_output["query"]
+        description = json_output["description"]
+        print("This is our description", description)
 
         # SQL_Statement = SQL_Statement.replace("SQL Query:", "").strip()
 
@@ -493,7 +494,7 @@ def invoke_chain(db,question, messages, selected_model, selected_subject, select
             # db = get_sql_db()
 
             result = db.execute(query)
-            logger.info(f"submit query --> invoke_chain : result after executing \n{query} : \n{result}")
+            # logger.info(f"submit query --> invoke_chain : result after executing \n{query} : \n{result}")
             try:
                 rows = result.fetchall()
                 columns = result.keys()
@@ -502,7 +503,7 @@ def invoke_chain(db,question, messages, selected_model, selected_subject, select
             except Exception as e:
                 logger.error(f"submit query --> invoke_chain : table data has some issues.{e}")
         # Include SQL_Statement in the return tuple
-        return json_output, db_tables, tables_data, final_prompt
+        return json_output, db_tables, tables_data, final_prompt ,description
 
     except Exception as e:
         print("submit query --> invoke_chain :", e)
@@ -570,8 +571,8 @@ def intent_classification(user_query):
                 break  # stop after the first matching intent (optional)
 
     if detected_intent and matched_tables:
-        print("Returned intent:", detected_intent)
-        print("Returned tables from intent:", matched_tables)
+        logger.info(f"submit query --> intent_classification,usecase, Returned intent:, {detected_intent}")
+        logger.info(f"submit query --> intent_classification,usecase, Returned tables from intent: {matched_tables}")
         return {
             "intent": detected_intent,
             "tables": list(matched_tables)
@@ -587,12 +588,12 @@ def get_business_rule(intent, file_path='business_rules.txt'):
             # Normalize all keys to lowercase for case-insensitive lookup
             business_rules = {k.lower(): v for k, v in ast.literal_eval(file_content).items()}
     except Exception as e:
-        return f"Error reading business rules file: {e}"
+        return f"submit query --> get_business_rule, Error reading business rules file: {e}"
 
     key = intent.lower().strip()
     rule = business_rules.get(key)
 
-    return rule if rule else f"No business rule defined for intent: {intent}"
+    return rule if rule else f"submit query --> get_business_rule, No business rule defined for intent: {intent}"
 
 # def get_example_selector(json_file_path: str):
 #     """

@@ -23,7 +23,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 import logging, time
 from logging.config import dictConfig
 import automotive_wordcloud_analysis as awa
-import zipfile
+import zipfile, asyncio
 from wordcloud import WordCloud
 from table_details import get_table_details, get_table_metadata  # Importing the function
 from openai import AzureOpenAI
@@ -56,6 +56,28 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 load_dotenv()  # Load environment variables from .env file
+# --- Helper function: the actual DB ping ---
+keep_alive_interval = os.getenv("keep_alive_interval")
+def run_keepalive_query(engine):
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+    logging.info("Keep-alive DB ping successful.")
+
+# --- The async keep-alive task ---
+async def keep_all_connections_alive(engine, pool_size, interval=keep_alive_interval):
+    logging.info("Keep-alive background task started.")
+
+    while True:
+        for _ in range(pool_size):
+            try:
+                logging.info(f"Pinging DB connection {_+1}/{pool_size}.")
+                await asyncio.to_thread(run_keepalive_query, engine)
+            except Exception as e:
+                logging.warning(f"Keep-alive ping failed: {e}")
+            await asyncio.sleep(1)  # Small pause between pings
+        await asyncio.sleep(interval)
+pool_size=int(SQL_POOL_SIZE)
+max_overflow=int(SQL_MAX_OVERFLOW)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Azure OpenAI LLM
@@ -79,6 +101,11 @@ async def lifespan(app: FastAPI):
     )
     app.state.engine = engine
     app.state.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+     # Start the keep-alive background task
+    keepalive_task = asyncio.create_task(
+        keep_all_connections_alive(engine, pool_size, interval=600)
+    )
+
     # --- RETRY LOGIC FOR WARM-UP ---
     max_attempts = 10
     for attempt in range(1, max_attempts + 1):
@@ -106,11 +133,17 @@ async def lifespan(app: FastAPI):
     #     decode_responses=True,
     #     max_connections=20
     # )
-
-    yield
+    try:
+        yield
     # # app.state.redis_client.close()
-
-    engine.dispose()
+    finally:
+        # On shutdown: cancel the keep-alive task and clean up
+        keepalive_task.cancel()
+        try:
+            await keepalive_task
+        except asyncio.CancelledError:
+            pass
+        engine.dispose()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -209,6 +242,16 @@ def download_as_excel(data: pd.DataFrame, filename: str = "data.xlsx"):
         data.to_excel(writer, index=False, sheet_name='Sheet1')
     output.seek(0)  # Reset the pointer to the beginning of the stream
     return output
+
+@app.get("/health")
+def health_check():
+    try:
+        with app.state.engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ok"}
+    except Exception:
+        return {"status": "db_error"}, 503
+
 @app.get("/get_prompt")
 async def get_prompt(type: str):
     if type == "interpretation":
@@ -379,7 +422,7 @@ def generate_chart_figure(data_df: pd.DataFrame, x_axis: str, y_axis: str, chart
             
         return fig
     except Exception as e:
-        logger.info(f"Error generating {chart_type} chart: {str(e)}")
+        logger.info(f"generate_chart_figure in main.py, Error generating {chart_type} chart: {str(e)}")
         raise
 
 class ChartRequest(BaseModel):
@@ -453,7 +496,6 @@ async def download_table(payload: TableDownloadRequest):
     # Convert to DataFrame
     df = pd.DataFrame(rows)
 
-    logger.info("data for download: ", df)
     # Generate Excel file (implement this function as you need)
     output = download_as_excel(df, filename=f"{table_name}.xlsx")
 
@@ -564,7 +606,7 @@ def load_prompts(filename:str):
         with open(filename, "r", encoding="utf-8") as file:
             return yaml.safe_load(file)
     except Exception as e:
-        logger.info(f"Error reading prompts file: {e}")
+        logger.info(f"load_prompts in main.py: Error reading prompts file: {e}")
         return {}
     
 
@@ -737,7 +779,7 @@ async def submit_query(
                 "langprompt": "",
                 "error": None
             }
-
+            # with log_execution_time("Prompt loading and rephrase LLM"):
             try:
                 # Reset per-request variables
                 unified_prompt = ""
@@ -760,7 +802,7 @@ async def submit_query(
                     last_msg = request.session['messages'][-1]  # Get the only message
                     chat_history = f"{last_msg['role']}: {last_msg['content']}"
                 
-                logger.info(f"Chat history: {chat_history}")
+                logger.info(f"Inside /submit request, Chat history: {chat_history}")
                 # logger.info(f"Messages in session for new question: {request.session['messages']}")
                 # Step 1: Generate unified prompt based on question type
                 try:
@@ -777,25 +819,26 @@ async def submit_query(
                         )
                         
                         # llm_reframed_query = llm.invoke(unified_prompt).content.strip()
-                        response = azure_openai_client.chat.completions.create(
-                            model=AZURE_DEPLOYMENT_NAME,
-                            messages=[
-                            {"role": "system", "content": unified_prompt},
-                            {"role": "user", "content": user_query}
-                        ],
-                        temperature=0,  # Lower temperature for more predictable, structured output
-                        response_format={"type": "json_object"}  # This is the key parameter!
-                        )
+                        with log_execution_time("submit_query -> Rephrasing LLM"):
+
+                            response = azure_openai_client.chat.completions.create(
+                                model=AZURE_DEPLOYMENT_NAME,
+                                messages=[
+                                {"role": "system", "content": unified_prompt},
+                                {"role": "user", "content": user_query}
+                            ],
+                            temperature=0,  # Lower temperature for more predictable, structured output
+                            response_format={"type": "json_object"}  # This is the key parameter!
+                            )
                     # The response content will be a JSON string
                         response_content = response.choices[0].message.content
-                        logger.info(f"Inside submit function: response recieved is: {response_content}")
+                        logger.info(f"Inside submit function: rephrased response form LLM is:: {response_content}")
 
                         # Parse the guaranteed JSON string into a Python dictionary
                         json_output = json.loads(response_content)
-                        logger.info(f"Inside submit function, usecase: json output in usecase: {json_output}")
+                        # logger.info(f"Inside submit function, usecase: json output in usecase: {json_output}")
                         # Now you can safely access the keys
                         llm_reframed_query = json_output.get("rephrased_query")
-                        logger.info(f"Inside submit function, usecase: reframed query after modification: {llm_reframed_query}")
 
                         intent_result = intent_classification(llm_reframed_query)
                         
@@ -828,19 +871,21 @@ async def submit_query(
                         )
                         
                         # llm_response_str = llm.invoke(unified_prompt).content.strip()
-                        response = azure_openai_client.chat.completions.create(
-                            model=AZURE_DEPLOYMENT_NAME,
-                            messages=[
-                            {"role": "system", "content": unified_prompt},
-                            {"role": "user", "content": user_query}
-                        ],
-                        temperature=0,  # Lower temperature for more predictable, structured output
-                        response_format={"type": "json_object"}  # This is the key parameter!
-                        )
+                        with log_execution_time("submit_query -> rephrase LLM"):
+
+                            response = azure_openai_client.chat.completions.create(
+                                model=AZURE_DEPLOYMENT_NAME,
+                                messages=[
+                                {"role": "system", "content": unified_prompt},
+                                {"role": "user", "content": user_query}
+                            ],
+                            temperature=0,  # Lower temperature for more predictable, structured output
+                            response_format={"type": "json_object"}  # This is the key parameter!
+                            )
 
                     # The response content will be a JSON string
                         response_content = response.choices[0].message.content
-                        logger.info(f"Inside submit function, generic: response recieved is: {response_content}")
+                        logger.info(f"Inside submit function, generic: rephrased query from LLM recieved is: {response_content}")
 
                         # Parse the guaranteed JSON string into a Python dictionary
                         json_output = json.loads(response_content)
@@ -852,8 +897,9 @@ async def submit_query(
                             llm_reframed_query = json_output.get("rephrased_query", "")
                             chosen_tables = db_tables
                             selected_business_rule = ""
-                            logger.info(f"Inside submit function, generic: reframed query after modification: {llm_reframed_query}, chosen tables are: {chosen_tables}")
-                            examples = get_examples(llm_reframed_query, "generic")
+                            logger.info(f"Inside submit function, generic: chosen tables are: {chosen_tables}")
+                            with log_execution_time("submit_query -> examples"):
+                                examples = get_examples(llm_reframed_query, "generic")
 
                         except json.JSONDecodeError:
                             raise HTTPException(
@@ -880,10 +926,10 @@ async def submit_query(
                 try:
                     relationships = find_relationships_for_tables(chosen_tables , 'table_relation.yaml')
                     table_details = get_table_details(table_name=chosen_tables)
-                    logger.info(f"relationships: {relationships}")
-                    logger.info(f"messages in session just before invoke chain: {request.session['messages']}")
+                    # logger.info(f"Inside /submit request, relationships: {relationships}")
+                    # logger.info(f"messages in session just before invoke chain: {request.session['messages']}")
 
-                    response, chosen_tables, tables_data, final_prompt = invoke_chain(
+                    response, chosen_tables, tables_data, final_prompt, description= invoke_chain(
                         db,
                         llm_reframed_query,  # Using the reframed query here
                         request.session['messages'],
@@ -898,6 +944,8 @@ async def submit_query(
                     )
 
                     response_data["langprompt"] = str(final_prompt)
+                    response_data["description"] = description
+
                     
                     if isinstance(response, str):
                         request.session['generated_query'] = response
@@ -998,7 +1046,7 @@ async def reset_session(request: Request):
     request.session["current_question_type"] = "generic"
     # request.session["prompts"] = load_prompts("generic_prompt.yaml")
 
-    logger.info(f"Question type is: {request.session.get('current_question_type')}")
+    logger.info(f"Endpoint: reset sesion, Question type is: {request.session.get('current_question_type')}")
     return {"message": "Session state cleared successfully"}
 
 def prepare_table_html(tables_data, page_number, records_per_page):
@@ -1146,6 +1194,5 @@ async def set_question_type(payload: QuestionTypeRequest, request: Request):
     request.session["current_question_type"] = current_question_type
     # request.session["prompts"] = prompts  # If you want to store prompts per session
 
-    print("Received question type:", current_question_type)
     return JSONResponse(content={"message": "Question type set", "prompts": prompts})
 
